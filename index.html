@@ -150,7 +150,9 @@
   <h1>CRÔNICAS<br>DO VAZIO</h1>
   <p class="sub">RPG Survivor. Sobreviva ondas infinitas. Ataques automáticos — só desviar e evoluir.</p>
   <button class="btn" id="playBtn">▶ JOGAR</button>
+  <button class="btn ghost" id="shopBtn">🛒 Loja de Melhorias</button>
   <button class="btn ghost" id="howBtn">Como jogar</button>
+  <p class="tips" id="menuGold"></p>
   <p class="tips" id="record"></p>
 </div>
 
@@ -176,6 +178,14 @@
   <div class="classes" id="classes"></div>
   <button class="btn" id="startBtn" disabled style="opacity:.5">Selecione uma classe</button>
   <button class="btn ghost" id="selBack">◀ Voltar</button>
+</div>
+
+<!-- SHOP -->
+<div class="screen hidden" id="shop">
+  <h2>🛒 Loja de Melhorias</h2>
+  <p class="sub">Melhorias <b>permanentes</b>, valem em todas as partidas.<br>Ouro: <b id="shopGold" style="color:#ffd27a">0</b> ✦</p>
+  <div class="upgrades" id="shopList"></div>
+  <button class="btn ghost" id="shopBack">◀ Voltar</button>
 </div>
 
 <!-- LEVEL UP -->
@@ -220,7 +230,7 @@ const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','shop','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -280,11 +290,44 @@ const ETYPES=[
   {id:'swarm',c:'#9aff7a',r:7,hp:5,spd:1.6,dmg:4,xp:1,gold:1},
 ];
 
+// ---------- Meta progression (permanent upgrades bought with persistent gold) ----------
+const META_UPGRADES=[
+  {id:'hp',   icon:'❤️',name:'Vitalidade',  max:10,desc:l=>`+${l*8}% vida máx`,
+    cost:l=>40+l*35, apply:(P,l)=>{const m=1+l*0.08;P.maxhp=Math.round(P.maxhp*m);P.hp=P.maxhp;}},
+  {id:'dmg',  icon:'⚔️',name:'Poder',       max:10,desc:l=>`+${l*4}% dano`,
+    cost:l=>50+l*45, apply:(P,l)=>{P.might+=l*0.04;}},
+  {id:'haste',icon:'⏱️',name:'Fúria',       max:8, desc:l=>`+${l*4}% vel. ataque`,
+    cost:l=>50+l*45, apply:(P,l)=>{P.haste+=l*0.04;}},
+  {id:'speed',icon:'👟',name:'Agilidade',    max:8, desc:l=>`+${l*3}% velocidade`,
+    cost:l=>45+l*40, apply:(P,l)=>{P.baseSpeed*=1+l*0.03;}},
+  {id:'armor',icon:'🛡️',name:'Couraça',      max:8, desc:l=>`+${l} armadura`,
+    cost:l=>55+l*50, apply:(P,l)=>{P.armor+=l;}},
+  {id:'crit', icon:'🎯',name:'Precisão',     max:8, desc:l=>`+${l*2}% crítico`,
+    cost:l=>55+l*50, apply:(P,l)=>{P.crit+=l*0.02;}},
+  {id:'regen',icon:'✚', name:'Cura',         max:6, desc:l=>`+${(l*0.2).toFixed(1)} vida/s`,
+    cost:l=>60+l*55, apply:(P,l)=>{P.regen+=l*0.2;}},
+  {id:'magnet',icon:'🧲',name:'Ímã',          max:6, desc:l=>`+${l*10}% coleta`,
+    cost:l=>40+l*30, apply:(P,l)=>{P.magnet*=1+l*0.1;}},
+  {id:'dash', icon:'💨',name:'Reflexos',     max:6, desc:l=>`-${l*5}% recarga dash`,
+    cost:l=>45+l*40, apply:(P,l)=>{P.dashMax*=1-l*0.05;}},
+  {id:'ult',  icon:'💥',name:'Canalização',  max:6, desc:l=>`-${l*5}% recarga ult`,
+    cost:l=>60+l*55, apply:(P,l)=>{P.ultMax*=1-l*0.05;}},
+  {id:'gold', icon:'✦', name:'Ganância',     max:8, desc:l=>`+${l*8}% ouro`,
+    cost:l=>50+l*45, apply:(P,l)=>{P.goldMul=1+l*0.08;}},
+  {id:'xp',   icon:'⭐',name:'Sabedoria',     max:8, desc:l=>`+${l*6}% XP`,
+    cost:l=>50+l*45, apply:(P,l)=>{P.xpMul=1+l*0.06;}},
+];
+function loadMeta(){ try{return JSON.parse(localStorage.getItem('void_meta'))||{};}catch(e){return {};} }
+function saveMeta(){ localStorage.setItem('void_meta',JSON.stringify(META)); }
+function loadBank(){ return parseInt(localStorage.getItem('void_bank')||'0',10); }
+function saveBank(){ localStorage.setItem('void_bank',String(bankGold)); }
+
 // ---------- State ----------
 let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[];
 let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0;
 let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null;
 let combo=0,comboTimer=0,beams=[];
+let bankGold=loadBank(), META=loadMeta();
 
 // ---------- Input: keyboard ----------
 addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
@@ -344,9 +387,12 @@ bindBtn($('dashBtn'),doDash); bindBtn($('ultBtn'),doUlt);
 function loadRecord(){ return parseInt(localStorage.getItem('void_record')||'0',10); }
 function saveRecord(t){ if(t>loadRecord()) localStorage.setItem('void_record',String(Math.floor(t))); }
 function refreshRecord(){ const r=loadRecord(); $('record').textContent = r? '🏆 Recorde: '+fmtTime(r) : ''; }
-refreshRecord();
+function updateMenuGold(){ $('menuGold').textContent='✦ Ouro: '+bankGold; }
+refreshRecord(); updateMenuGold();
 
 $('playBtn').onclick=()=>{ buildClassCards(); show('select'); };
+$('shopBtn').onclick=()=>{ buildShop(); show('shop'); };
+$('shopBack').onclick=()=>{ updateMenuGold(); show('menu'); };
 $('howBtn').onclick=()=>show('how');
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>show('menu');
@@ -361,7 +407,23 @@ function toMenu(){
   running=false; paused=false;
   $('hud').classList.add('hidden'); $('pauseBtn').classList.add('hidden'); $('actions').classList.add('hidden');
   $('combo').style.opacity='0'; joyEnd();
-  refreshRecord(); show('menu');
+  refreshRecord(); updateMenuGold(); show('menu');
+}
+
+function buildShop(){
+  $('shopGold').textContent=bankGold;
+  const el=$('shopList'); el.innerHTML='';
+  META_UPGRADES.forEach(u=>{
+    const lvl=META[u.id]||0, maxed=lvl>=u.max, cost=u.cost(lvl), can=!maxed&&bankGold>=cost;
+    const d=document.createElement('div'); d.className='up';
+    d.innerHTML=`<div class="ut"><span>${u.icon} ${u.name}</span><span class="lvl">Nv ${lvl}/${u.max}</span></div>`+
+      `<div class="ud">${maxed?u.desc(lvl):u.desc(lvl)+' → '+u.desc(lvl+1)}</div>`+
+      `<div class="ud" style="margin-top:6px;font-weight:bold;color:${maxed?'#9aff7a':(can?'#ffd27a':'#ff7a7a')}">`+
+        `${maxed?'✔ MÁXIMO':'Custo: '+cost+' ✦'}</div>`;
+    if(can){ d.onclick=()=>{ bankGold-=cost; META[u.id]=lvl+1; saveBank(); saveMeta(); buildShop(); }; }
+    else d.style.opacity=maxed?'0.7':'0.5';
+    el.appendChild(d);
+  });
 }
 
 function buildClassCards(){
@@ -426,6 +488,9 @@ function startGame(cls){
   if(cls.id==='ranger')P.magnet=240;
   if(cls.id==='mage')P.boltBonus=0.25;
   if(cls.id==='warlock')P.healOnKill=2;
+  // permanent meta upgrades
+  P.goldMul=1; P.xpMul=1;
+  META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; if(l>0)u.apply(P,l); });
   P.weapons[cls.start]={level:1,cd:0};
   enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];
   combo=0;comboTimer=0;
@@ -704,7 +769,7 @@ function update(dt){
 
   for(const o of orbs){const d=dist2(P,o);if(d<P.magnet*P.magnet)o.pull=true;
     if(o.pull){const a=Math.atan2(P.y-o.y,P.x-o.x);o.x+=Math.cos(a)*8;o.y+=Math.sin(a)*8;}
-    if(d<(P.r+8)*(P.r+8)){o.dead=true;gainXP(o.xp);gold+=o.gold;
+    if(d<(P.r+8)*(P.r+8)){o.dead=true;gainXP(o.xp);gold+=o.gold*(P.goldMul||1);
       particles.push({x:P.x,y:P.y,vx:0,vy:-1,t:0.3,c:'#7af5ff',r:2});}}
   orbs=orbs.filter(o=>!o.dead);
 
@@ -716,13 +781,14 @@ function update(dt){
   updateHUD();
 }
 function gainXP(n){
-  P.xp+=n;
+  P.xp+=n*(P.xpMul||1);
   while(P.xp>=P.xpNext){P.xp-=P.xpNext;P.level++;P.xpNext=Math.floor(P.xpNext*1.35+3);showLevelUp();}
 }
 function gameOver(){
   running=false; saveRecord(gameTime);
-  $('go-stats').innerHTML=`Sobreviveu <b>${fmtTime(gameTime)}</b> · Nível <b>${P.level}</b> · <b>${kills}</b> abates · <b>${gold}</b> ✦`;
-  $('go-record').textContent='🏆 Recorde: '+fmtTime(loadRecord());
+  const earned=Math.floor(gold); bankGold+=earned; saveBank();
+  $('go-stats').innerHTML=`Sobreviveu <b>${fmtTime(gameTime)}</b> · Nível <b>${P.level}</b> · <b>${kills}</b> abates<br>+<b style="color:#ffd27a">${earned}</b> ✦ ganho · Total: <b style="color:#ffd27a">${bankGold}</b> ✦`;
+  $('go-record').textContent='🏆 Recorde: '+fmtTime(loadRecord())+'  ·  🛒 Gaste o ouro na Loja!';
   $('hud').classList.add('hidden'); $('pauseBtn').classList.add('hidden'); $('actions').classList.add('hidden');
   $('combo').style.opacity='0'; joyEnd();
   show('gameover');
@@ -732,7 +798,7 @@ function updateHUD(){
   $('xpfill').style.width=(P.xp/P.xpNext*100)+'%';
   $('hpfill').style.width=clamp(P.hp/P.maxhp*100,0,100)+'%';
   $('s-level').textContent='Nv '+P.level; $('s-time').textContent=fmtTime(gameTime);
-  $('s-kills').textContent='☠ '+kills; $('s-gold').textContent='✦ '+gold;
+  $('s-kills').textContent='☠ '+kills; $('s-gold').textContent='✦ '+Math.floor(gold);
   drawCd($('ultCd'),P.ultCd,P.ultMax,$('ultBtn'));
   drawCd($('dashCd'),P.dashCd,P.dashMax,$('dashBtn'));
 }
