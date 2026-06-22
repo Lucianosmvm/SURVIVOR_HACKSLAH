@@ -48,6 +48,14 @@
   .card:active { transform:scale(.96); }
   .card.sel { border-color:#7af5ff; box-shadow:0 0 0 2px #7af5ff66, 0 10px 30px rgba(122,245,255,.25); }
   .card .icon { font-size:40px; }
+  .card .portrait { width:78px; height:78px; margin:0 auto 6px; border-radius:50%; background:#0d0c1c;
+    border:2px solid #2a2750; display:flex; align-items:center; justify-content:center; overflow:hidden; transition:border-color .12s; }
+  .card.sel .portrait { border-color:#7af5ff; }
+  .card .portrait .pemoji { font-size:44px; line-height:1; }
+  .card .portrait img { width:100%; height:100%; object-fit:cover; display:block; }
+  .upbtn { margin-top:8px; display:inline-block; background:#0e1326; border:1px solid #2a2750; color:#9aa0c0;
+    font-size:11px; padding:5px 12px; border-radius:10px; cursor:pointer; touch-action:manipulation; }
+  .upbtn:active { transform:scale(.95); }
   .card .name { font-size:clamp(16px,4.4vw,20px); margin:6px 0 4px; color:#fff; font-weight:bold; }
   .card .desc { font-size:clamp(11px,3vw,13px); color:#9aa0c0; line-height:1.35; }
   .card .stats { font-size:11px; color:#6a6f92; margin-top:6px; }
@@ -231,6 +239,26 @@ const CLASSES=[
     ult:{id:'reap',name:'Ceifar Almas',icon:'💀',cd:15,desc:'Explode tudo perto e cura muito.'},
     passive:'cura ao matar', stats:'❤️120 · 💀 Ceifar'},
 ];
+// ---------- Character images (uploaded, persisted) ----------
+const charImages={}; // id -> Image
+const charImgKey=id=>'void_charimg_'+id;
+function loadCharImages(){
+  CLASSES.forEach(c=>{ const data=localStorage.getItem(charImgKey(c.id));
+    if(data){ const im=new Image(); im.src=data; charImages[c.id]=im; } });
+}
+loadCharImages();
+// downscale to max 256px + jpeg to keep localStorage small
+function processImage(file,cb){
+  const rd=new FileReader();
+  rd.onload=()=>{ const im=new Image(); im.onload=()=>{
+    const max=256; let w=im.width,h=im.height; const s=Math.min(1,max/Math.max(w,h));
+    w=Math.round(w*s); h=Math.round(h*s);
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(im,0,0,w,h);
+    cb(c.toDataURL('image/jpeg',0.85));
+  }; im.src=rd.result; };
+  rd.readAsDataURL(file);
+}
 const WEAPONS={
   bolt:{name:'Raio Arcano',icon:'🔮',desc:'Projétil teleguiado.'},
   blade:{name:'Lâmina Orbital',icon:'⚔️',desc:'Lâminas giram ao redor.'},
@@ -341,13 +369,36 @@ function buildClassCards(){
   const el=$('classes'); el.innerHTML='';
   CLASSES.forEach(c=>{
     const d=document.createElement('div'); d.className='card';
-    d.innerHTML=`<div class="icon">${c.icon}</div><div class="name" style="color:${c.color}">${c.name}</div><div class="desc">${c.desc}</div><div class="stats">${c.ult.icon} <b>${c.ult.name}</b><br>${c.ult.desc}<br>🔸 ${c.passive}</div>`;
+    const data=localStorage.getItem(charImgKey(c.id)), hasImg=!!data;
+    d.innerHTML=`<div class="portrait">`+
+        `<img class="pimg ${hasImg?'':'hidden'}" ${hasImg?`src="${data}"`:''} alt="">`+
+        `<span class="pemoji ${hasImg?'hidden':''}">${c.icon}</span>`+
+      `</div>`+
+      `<div class="name" style="color:${c.color}">${c.name}</div>`+
+      `<div class="desc">${c.desc}</div>`+
+      `<div class="stats">${c.ult.icon} <b>${c.ult.name}</b><br>${c.ult.desc}<br>🔸 ${c.passive}</div>`+
+      `<label class="upbtn"><span class="uptxt">📷 ${hasImg?'Trocar':'Enviar'} imagem</span>`+
+        `<input type="file" accept="image/*" class="upinput" hidden></label>`;
     d.onclick=()=>{
       selectedClass=c;
       [...el.children].forEach(ch=>ch.classList.remove('sel'));
       d.classList.add('sel');
       const b=$('startBtn'); b.disabled=false; b.style.opacity='1'; b.textContent='▶ Jogar de '+c.name;
     };
+    const label=d.querySelector('.upbtn'), input=d.querySelector('.upinput');
+    label.addEventListener('click',ev=>ev.stopPropagation()); // open picker, don't select card
+    input.addEventListener('change',ev=>{
+      const file=ev.target.files[0]; if(!file)return;
+      processImage(file,url=>{
+        try{ localStorage.setItem(charImgKey(c.id),url); }
+        catch(err){ alert('Não consegui salvar a imagem (muito grande).'); return; }
+        const im=new Image(); im.src=url; charImages[c.id]=im;
+        const img=d.querySelector('.pimg'); img.src=url; img.classList.remove('hidden');
+        d.querySelector('.pemoji').classList.add('hidden');
+        d.querySelector('.uptxt').textContent='📷 Trocar imagem';
+      });
+      input.value='';
+    });
     el.appendChild(d);
   });
   const b=$('startBtn'); b.disabled=true; b.style.opacity='.5'; b.textContent='Selecione uma classe';
@@ -758,7 +809,14 @@ function render(){
   if(P.invuln>0&&Math.floor(P.invuln*20)%2)cx.globalAlpha=0.5;
   cx.fillStyle=P.color;cx.shadowColor=P.color;cx.shadowBlur=18;
   cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.fill();
-  cx.font='16px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(P.cls.icon,P.x,P.y+1);
+  const cimg=charImages[P.cls.id];
+  if(cimg&&cimg.complete&&cimg.naturalWidth){
+    cx.shadowBlur=0;
+    cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.clip();
+    cx.drawImage(cimg,P.x-P.r,P.y-P.r,P.r*2,P.r*2);
+  } else {
+    cx.font='16px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(P.cls.icon,P.x,P.y+1);
+  }
   cx.restore();cx.shadowBlur=0;
 
   cx.textAlign='center';
