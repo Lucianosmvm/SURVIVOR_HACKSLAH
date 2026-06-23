@@ -154,7 +154,7 @@
   .dash .acdnum { color:#6ad4ff; }
 
   /* ---- Combo banner ---- */
-  #combo { position:absolute; z-index:5; left:50%; top:58px; transform:translateX(-50%) skewX(-6deg); pointer-events:none;
+  #combo { position:absolute; z-index:5; left:50%; top:26%; transform:translateX(-50%) skewX(-6deg); pointer-events:none;
     font-weight:900; font-size:clamp(22px,7.5vw,40px); letter-spacing:1px; text-transform:uppercase;
     background:linear-gradient(180deg,#fff7d6 0%,#ffd27a 38%,#ff8a2a 70%,#ff3d3d 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -170,111 +170,137 @@
   .wave-fill { height:100%; width:0%; background:linear-gradient(90deg,#ff7a2a,#ffd27a); transition:width .25s; }
   .wave-skulls { font-size:12px; color:#cdd2f0; white-space:nowrap; display:flex; align-items:center; gap:4px; }
 
-  /* ============ LOBBY (main menu) ============ */
+  /* ============ LOBBY (RPG mobile menu) ============ */
   .screen.lobby{ display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch;
     gap:0; padding:0; text-align:left;
-    background:linear-gradient(rgba(5,6,10,.7),rgba(5,6,10,.93)),
-      radial-gradient(circle at 70% 28%, rgba(42,34,86,.6), rgba(5,6,10,.98));
-    overflow-y:auto; }
+    background:
+      linear-gradient(rgba(6,8,16,.82),rgba(4,5,11,.96)),
+      radial-gradient(circle at 50% 30%, rgba(46,40,98,.55), rgba(5,6,12,.99));
+    overflow:hidden; }
 
-  /* top bar */
-  .lb-top{ display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;
-    padding:max(10px,env(safe-area-inset-top)) 14px 8px; }
-  .lb-prof{ display:flex; align-items:center; gap:9px; background:rgba(13,12,28,.7);
-    border:1px solid #2a2750; border-radius:14px; padding:6px 10px 6px 7px; }
-  .lb-ava{ width:42px; height:42px; border-radius:11px; background:linear-gradient(160deg,#241c4a,#0d0c1c);
-    border:2px solid #ffd27a; display:flex; align-items:center; justify-content:center; font-size:21px;
-    flex-shrink:0; overflow:hidden; box-shadow:0 0 10px rgba(255,210,122,.3); }
+  /* ---- top bar ---- */
+  .lb-top{ display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:max(8px,env(safe-area-inset-top)) 12px 6px; }
+  .lb-prof{ display:flex; align-items:center; gap:10px; flex:1; min-width:0;
+    background:linear-gradient(160deg,rgba(20,18,46,.9),rgba(10,9,22,.9));
+    border:1px solid #4a3f7a; border-radius:14px; padding:5px 12px 5px 5px;
+    box-shadow:inset 0 0 0 1px rgba(255,210,122,.08); }
+  .lb-ava{ position:relative; width:44px; height:44px; border-radius:12px;
+    background:linear-gradient(160deg,#2a2152,#0d0c1c); border:2px solid #ffd27a;
+    display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;
+    overflow:hidden; box-shadow:0 0 12px rgba(255,210,122,.35); }
   .lb-ava img{ width:100%; height:100%; object-fit:cover; }
-  .lb-prof-info{ min-width:92px; }
-  .lb-pname{ font-size:13px; font-weight:bold; color:#fff; white-space:nowrap; }
-  .lb-pname span{ color:#6a6f92; font-weight:normal; font-size:11px; }
-  .lb-pxp{ height:7px; margin-top:4px; border-radius:5px; background:#1a1830; border:1px solid #2a2750; overflow:hidden; }
-  .lb-pxp>div{ height:100%; width:0; background:linear-gradient(90deg,#7af5ff,#b388ff); transition:width .3s; }
-  .lb-plvl{ width:30px; height:30px; border-radius:8px; background:#0d0c1c; border:1px solid #ffd27a; color:#ffd27a;
-    font-weight:bold; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .lb-res{ display:flex; gap:8px; }
-  .lb-cur{ display:flex; align-items:center; gap:6px; background:rgba(13,12,28,.7); border:1px solid #2a2750;
-    border-radius:12px; padding:7px 12px; font-weight:bold; font-size:14px; color:#fff; }
-  .lb-cur .ic{ font-size:15px; color:#ffd27a; }
+  .lb-plvl{ position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+    min-width:20px; height:18px; padding:0 5px; border-radius:9px;
+    background:linear-gradient(180deg,#3a2f12,#1a1408); border:1px solid #ffd27a; color:#ffd27a;
+    font-weight:900; font-size:11px; display:flex; align-items:center; justify-content:center; }
+  .lb-prof-info{ flex:1; min-width:0; }
+  .lb-pname{ font-size:13px; font-weight:bold; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-pname span{ color:#ffd27a; font-weight:bold; font-size:11px; margin-left:4px; }
+  .lb-power{ font-size:10px; color:#9aa0c0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lb-pxp{ height:6px; margin-top:3px; border-radius:5px; background:#15132a; border:1px solid #2a2750; overflow:hidden; }
+  .lb-pxp>div{ height:100%; width:0; background:linear-gradient(90deg,#ffd27a,#ff9a3c); transition:width .3s; }
+  .lb-res{ display:flex; gap:6px; align-items:center; flex-shrink:0; }
+  .lb-cur{ display:flex; align-items:center; gap:5px;
+    background:linear-gradient(160deg,rgba(20,18,46,.9),rgba(10,9,22,.9));
+    border:1px solid #4a3f7a; border-radius:11px; padding:7px 10px; font-weight:bold; font-size:13px; color:#fff; }
+  .lb-cur .ic{ font-size:14px; color:#ffd27a; }
+  .lb-menu{ width:38px; height:38px; flex-shrink:0; border-radius:11px;
+    background:linear-gradient(160deg,rgba(20,18,46,.9),rgba(10,9,22,.9)); border:1px solid #4a3f7a;
+    color:#cdd2f0; font-size:18px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    touch-action:manipulation; }
+  .lb-menu:active{ transform:scale(.93); }
 
-  /* body grid */
-  .lb-body{ flex:1; display:grid; grid-template-columns:1fr; gap:12px; padding:6px 14px; min-height:0; }
-  .lb-nav{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; -webkit-overflow-scrolling:touch; }
-  .lb-navbtn{ flex:0 0 auto; display:flex; align-items:center; gap:7px; background:rgba(13,12,28,.6);
-    border:1px solid #2a2750; border-radius:12px; padding:9px 14px; color:#9aa0c0; font-weight:bold; font-size:13px;
-    cursor:pointer; position:relative; white-space:nowrap; transition:.12s; touch-action:manipulation; }
-  .lb-navbtn .ni{ font-size:16px; }
-  .lb-navbtn.active{ color:#ffd27a; border-color:#ffd27a; background:linear-gradient(160deg,#241c4a,#0d0c1c);
-    box-shadow:0 0 12px rgba(255,210,122,.25); }
-  .lb-navbtn:active{ transform:scale(.96); }
-  .lb-dot{ position:absolute; top:5px; right:7px; width:8px; height:8px; border-radius:50%; background:#ff4d4d;
-    box-shadow:0 0 6px #ff4d4d; }
+  /* ---- body: left rail + center ---- */
+  .lb-body{ flex:1; display:grid; grid-template-columns:64px 1fr; gap:10px; padding:10px 12px 6px; min-height:0;
+    overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .lb-nav{ display:flex; flex-direction:column; gap:12px; }
+  .lb-navbtn{ display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none;
+    color:#9aa0c0; font-weight:bold; font-size:9px; letter-spacing:.5px; cursor:pointer; position:relative;
+    touch-action:manipulation; padding:0; }
+  .lb-navbtn .ni{ width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center;
+    font-size:22px; background:linear-gradient(160deg,#1a1638,#0d0c1c); border:1px solid #4a3f7a; transition:.12s; }
+  .lb-navbtn.active{ color:#ffd27a; }
+  .lb-navbtn.active .ni{ border-color:#ffd27a; background:linear-gradient(160deg,#2e2658,#14102e);
+    box-shadow:0 0 14px rgba(255,210,122,.4); }
+  .lb-navbtn:active .ni{ transform:scale(.92); }
+  .lb-dot{ position:absolute; top:-3px; right:4px; width:15px; height:15px; border-radius:50%; background:#ff4d4d;
+    border:2px solid #0b0a18; box-shadow:0 0 6px rgba(255,77,77,.7); }
+
+  .lb-main{ display:flex; flex-direction:column; gap:10px; min-width:0; }
 
   /* hero stage */
-  .lb-hero{ position:relative; border-radius:18px; overflow:hidden; min-height:300px;
-    background:radial-gradient(circle at 62% 32%, rgba(46,38,92,.7), rgba(5,6,10,.96));
-    border:1px solid #2a2750; display:flex; align-items:flex-end; }
-  .lb-portrait{ position:absolute; right:0; top:0; bottom:0; width:58%; display:flex; align-items:center; justify-content:center; }
-  .lb-portrait img{ height:94%; max-width:100%; object-fit:contain; filter:drop-shadow(0 12px 26px rgba(0,0,0,.65)); }
-  .lb-pemoji{ font-size:118px; filter:drop-shadow(0 12px 26px rgba(0,0,0,.65)); }
-  .lb-heroinfo{ position:relative; z-index:2; padding:18px; max-width:64%; }
-  .lb-hclass{ font-size:11px; letter-spacing:2px; color:#9aa0c0; }
-  .lb-hname{ font-size:clamp(24px,7vw,40px); font-weight:900; line-height:1; margin:2px 0 5px; }
-  .lb-hsub{ font-size:12px; color:#9aa0c0; margin-bottom:11px; line-height:1.4; }
-  .lb-hstats{ display:flex; flex-direction:column; gap:7px; }
-  .lb-st{ display:flex; align-items:center; gap:8px; font-size:12px; color:#cdd2f0;
-    background:rgba(13,12,28,.55); border:1px solid #2a2750; border-radius:9px; padding:5px 9px; max-width:250px; }
-  .lb-st .ic{ font-size:14px; width:16px; text-align:center; }
-  .lb-st .k{ color:#6a6f92; width:58px; font-size:10px; letter-spacing:1px; }
-  .lb-st b{ color:#fff; margin-left:auto; text-align:right; }
-  .lb-arrow{ position:absolute; z-index:3; top:50%; transform:translateY(-50%); width:34px; height:34px;
-    border-radius:50%; background:rgba(13,12,28,.82); border:1px solid #ffd27a; color:#ffd27a; font-size:20px;
+  .lb-hero{ position:relative; border-radius:18px; overflow:hidden; min-height:268px;
+    background:radial-gradient(circle at 50% 36%, rgba(52,44,104,.75), rgba(6,7,14,.97));
+    border:1px solid #4a3f7a; display:flex; align-items:flex-end; justify-content:center;
+    box-shadow:inset 0 -40px 60px rgba(0,0,0,.5); }
+  .lb-portrait{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .lb-portrait img{ height:90%; max-width:94%; object-fit:contain; filter:drop-shadow(0 14px 30px rgba(0,0,0,.7)); }
+  .lb-pemoji{ font-size:128px; filter:drop-shadow(0 14px 30px rgba(0,0,0,.7)); }
+  .lb-arrow{ position:absolute; z-index:3; top:46%; transform:translateY(-50%); width:36px; height:36px;
+    border-radius:50%; background:rgba(13,12,28,.85); border:1px solid #ffd27a; color:#ffd27a; font-size:22px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; }
   .lb-arrow.l{ left:8px; } .lb-arrow.r{ right:8px; }
   .lb-arrow:active{ transform:translateY(-50%) scale(.9); }
+  .lb-chapter{ position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:2; text-align:center;
+    background:linear-gradient(180deg,rgba(13,12,28,.55),rgba(13,12,28,.92));
+    border:1px solid #4a3f7a; border-radius:12px; padding:7px 22px; white-space:nowrap; }
+  .lb-chapter .lb-hclass{ font-size:9px; letter-spacing:2px; color:#9aa0c0; }
+  .lb-chapter .lb-hname{ font-size:clamp(17px,5.5vw,24px); font-weight:900; line-height:1.1; }
+  .lb-hsub{ display:none; }
 
-  /* aside panels */
-  .lb-aside{ display:flex; flex-direction:column; gap:12px; }
-  .lb-panel{ background:linear-gradient(160deg,#171436,#0d0c1c); border:1px solid #2a2750; border-radius:16px; padding:14px; }
-  .lb-ptitle{ font-size:13px; font-weight:bold; letter-spacing:1px; color:#ffd27a; margin-bottom:12px;
-    display:flex; justify-content:space-between; align-items:center; }
-  .lb-ptitle .more{ font-size:11px; color:#7af5ff; cursor:pointer; }
-  .lb-obj{ margin-bottom:13px; } .lb-obj:last-child{ margin-bottom:0; }
-  .lb-objrow{ display:flex; justify-content:space-between; font-size:13px; color:#cdd2f0; }
-  .lb-objn{ color:#9aa0c0; font-size:12px; }
-  .lb-objbar{ height:8px; margin:5px 0; border-radius:5px; background:#1a1830; border:1px solid #2a2750; overflow:hidden; }
-  .lb-objbar>div{ height:100%; background:linear-gradient(90deg,#7af5ff,#b388ff); }
-  .lb-objrew{ font-size:11px; color:#ffd27a; }
-  .lb-season{ display:flex; align-items:center; gap:12px; }
-  .lb-seal{ width:54px; height:54px; border-radius:12px; background:linear-gradient(160deg,#241c4a,#0d0c1c);
-    border:2px solid #ffd27a; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;
-    box-shadow:0 0 12px rgba(255,210,122,.3); }
-  .lb-seasoninfo{ flex:1; min-width:0; }
-  .lb-seasoninfo .t{ font-size:14px; color:#fff; font-weight:bold; }
-  .lb-seasoninfo .s{ font-size:11px; color:#9aa0c0; margin:2px 0; }
-
-  /* footer */
-  .lb-foot{ display:flex; align-items:stretch; gap:10px; padding:8px 14px max(12px,env(safe-area-inset-bottom)); }
-  .lb-quick{ display:flex; gap:8px; }
-  .lb-q{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-    background:rgba(13,12,28,.7); border:1px solid #2a2750; border-radius:12px; padding:6px 12px; color:#cdd2f0;
-    cursor:pointer; font-size:10px; touch-action:manipulation; }
-  .lb-q span{ font-size:20px; } .lb-q:active{ transform:scale(.95); }
-  .lb-play{ flex:1; border:none; cursor:pointer; border-radius:16px; padding:12px;
+  /* play button */
+  .lb-play{ border:none; cursor:pointer; border-radius:14px; padding:13px;
     background:linear-gradient(180deg,#ffe9a8,#ffd27a 45%,#e0a23c); color:#3a2600;
-    box-shadow:0 6px 20px rgba(255,200,90,.45), inset 0 1px 0 rgba(255,255,255,.6);
+    box-shadow:0 6px 22px rgba(255,200,90,.5), inset 0 1px 0 rgba(255,255,255,.7), inset 0 0 0 2px rgba(120,80,10,.25);
     display:flex; flex-direction:column; align-items:center; touch-action:manipulation; }
-  .lb-play b{ font-size:25px; font-weight:900; letter-spacing:3px; line-height:1; }
-  .lb-play span{ font-size:11px; color:#5a3d10; margin-top:3px; }
+  .lb-play b{ font-size:26px; font-weight:900; letter-spacing:4px; line-height:1; }
+  .lb-play span{ font-size:11px; color:#5a3d10; margin-top:3px; font-weight:bold; }
   .lb-play:active{ transform:scale(.98); }
 
+  /* info panels */
+  .lb-panel{ background:linear-gradient(160deg,#171436,#0d0c1c); border:1px solid #4a3f7a; border-radius:14px; padding:12px; }
+  .lb-ptitle{ font-size:12px; font-weight:bold; letter-spacing:1px; color:#ffd27a; margin-bottom:10px;
+    display:flex; justify-content:space-between; align-items:center; }
+  .lb-ptitle .more{ font-size:10px; color:#7af5ff; cursor:pointer; }
+  .lb-hstats{ display:flex; flex-wrap:wrap; gap:7px; }
+  .lb-st{ display:flex; align-items:center; gap:7px; font-size:11px; color:#cdd2f0; flex:1 1 44%;
+    background:rgba(13,12,28,.55); border:1px solid #2a2750; border-radius:10px; padding:7px 9px; }
+  .lb-st .ic{ font-size:13px; width:15px; text-align:center; }
+  .lb-st .k{ color:#6a6f92; font-size:9px; letter-spacing:1px; }
+  .lb-st b{ color:#fff; margin-left:auto; text-align:right; }
+  .lb-obj{ margin-bottom:11px; } .lb-obj:last-child{ margin-bottom:0; }
+  .lb-objrow{ display:flex; justify-content:space-between; font-size:12px; color:#cdd2f0; }
+  .lb-objn{ color:#9aa0c0; font-size:11px; }
+  .lb-objbar{ height:7px; margin:5px 0; border-radius:5px; background:#15132a; border:1px solid #2a2750; overflow:hidden; }
+  .lb-objbar>div{ height:100%; background:linear-gradient(90deg,#ffd27a,#ff9a3c); }
+  .lb-objrew{ font-size:10px; color:#ffd27a; }
+  .lb-season{ display:flex; align-items:center; gap:12px; }
+  .lb-seal{ width:50px; height:50px; border-radius:12px; background:linear-gradient(160deg,#2a2152,#0d0c1c);
+    border:2px solid #ffd27a; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;
+    box-shadow:0 0 12px rgba(255,210,122,.3); }
+  .lb-seasoninfo{ flex:1; min-width:0; }
+  .lb-seasoninfo .t{ font-size:13px; color:#fff; font-weight:bold; }
+  .lb-seasoninfo .s{ font-size:11px; color:#9aa0c0; margin:2px 0; }
+
+  /* ---- bottom tab bar ---- */
+  .lb-tabs{ display:flex; align-items:stretch; gap:2px; flex-shrink:0;
+    padding:6px 8px max(8px,env(safe-area-inset-bottom));
+    background:linear-gradient(0deg,rgba(10,9,20,.97),rgba(10,9,20,.55)); border-top:1px solid #2a2750; }
+  .lb-tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none;
+    color:#7a80a0; font-size:9px; font-weight:bold; letter-spacing:.5px; cursor:pointer; position:relative;
+    padding:5px 0; touch-action:manipulation; }
+  .lb-tab .ti{ font-size:21px; }
+  .lb-tab.active{ color:#ffd27a; }
+  .lb-tab.active .ti{ filter:drop-shadow(0 0 8px rgba(255,210,122,.6)); }
+  .lb-tab:active{ transform:scale(.94); }
+
   @media(min-width:760px) and (orientation:landscape){
-    .lb-body{ grid-template-columns:172px 1fr 290px; grid-template-areas:"nav hero aside"; align-items:stretch; }
-    .lb-nav{ grid-area:nav; flex-direction:column; overflow:visible; }
-    .lb-navbtn{ width:100%; }
-    .lb-hero{ grid-area:hero; }
-    .lb-aside{ grid-area:aside; overflow-y:auto; }
+    .lb-body{ grid-template-columns:74px 1.1fr .9fr; align-items:start; }
+    .lb-main{ display:contents; }
+    .lb-hero{ grid-column:2; min-height:340px; }
+    .lb-play{ grid-column:2; }
+    .lb-panel{ grid-column:3; }
   }
 </style>
 </head>
@@ -293,7 +319,6 @@
       <div class="hudrow">
         <span class="stat hp"><span class="ic">❤</span><span id="s-hp">0/0</span></span>
         <span class="stat gold"><span class="ic">🪙</span><span id="s-gold">0</span></span>
-        <span class="stat kills"><span class="ic">💀</span><span id="s-kills">0</span></span>
       </div>
     </div>
   </div>
@@ -303,7 +328,6 @@
 <div id="topRight" class="hidden">
   <div id="gearBtn">⚙</div>
   <div id="minimapWrap"><canvas id="minimap"></canvas></div>
-  <div id="pauseBtn">⏸</div>
 </div>
 
 <!-- Combo -->
@@ -330,45 +354,52 @@
   <!-- top bar -->
   <div class="lb-top">
     <div class="lb-prof">
-      <div class="lb-ava" id="lbAva"><span>🛡️</span></div>
+      <div class="lb-ava" id="lbAva"><span>🛡️</span><span class="lb-plvl" id="lbPlvl">1</span></div>
       <div class="lb-prof-info">
-        <div class="lb-pname">Herói<span id="lbTag">#0001</span></div>
+        <div class="lb-pname">Herói <span id="lbTag">#0001</span></div>
+        <div class="lb-power">Crônicas do Vazio</div>
         <div class="lb-pxp"><div id="lbPxp"></div></div>
       </div>
-      <div class="lb-plvl" id="lbPlvl">1</div>
     </div>
     <div class="lb-res">
       <div class="lb-cur"><span class="ic">✦</span><span id="lbGold">0</span></div>
       <div class="lb-cur"><span class="ic">🏆</span><span id="lbRec">--:--</span></div>
+      <button class="lb-menu" data-act="how">☰</button>
     </div>
   </div>
 
-  <!-- body -->
+  <!-- body: left rail + center -->
   <div class="lb-body">
     <nav class="lb-nav" id="lbNav">
-      <button class="lb-navbtn active" data-act="home"><span class="ni">⚔️</span><span>JOGAR</span></button>
       <button class="lb-navbtn" data-act="hero"><span class="ni">🦸</span><span>HERÓI</span></button>
       <button class="lb-navbtn" data-act="shop"><span class="ni">🛒</span><span>LOJA</span><i class="lb-dot" id="lbShopDot" style="display:none"></i></button>
-      <button class="lb-navbtn" data-act="how"><span class="ni">📖</span><span>COMO JOGAR</span></button>
+      <button class="lb-navbtn" data-act="how"><span class="ni">📖</span><span>AJUDA</span></button>
     </nav>
 
-    <div class="lb-hero">
-      <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
-      <button class="lb-arrow l" id="lbPrev">‹</button>
-      <button class="lb-arrow r" id="lbNext">›</button>
-      <div class="lb-heroinfo">
-        <div class="lb-hclass">CLASSE</div>
-        <div class="lb-hname" id="lbHName">Nome</div>
-        <div class="lb-hsub" id="lbHSub">desc</div>
+    <div class="lb-main">
+      <div class="lb-hero">
+        <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
+        <button class="lb-arrow l" id="lbPrev">‹</button>
+        <button class="lb-arrow r" id="lbNext">›</button>
+        <div class="lb-chapter">
+          <div class="lb-hclass">CLASSE</div>
+          <div class="lb-hname" id="lbHName">Nome</div>
+        </div>
+        <div class="lb-hsub" id="lbHSub"></div>
+      </div>
+
+      <button class="lb-play" id="lbPlay"><b>JOGAR</b><span id="lbPlaySub">— escolher classe —</span></button>
+
+      <div class="lb-panel">
+        <div class="lb-ptitle">ATRIBUTOS</div>
         <div class="lb-hstats" id="lbHStats"></div>
       </div>
-    </div>
 
-    <aside class="lb-aside">
       <div class="lb-panel">
         <div class="lb-ptitle">OBJETIVOS<span class="more" data-act="shop">VER LOJA ›</span></div>
         <div id="lbObjs"></div>
       </div>
+
       <div class="lb-panel">
         <div class="lb-ptitle">PROGRESSO</div>
         <div class="lb-season">
@@ -381,16 +412,15 @@
           <div style="text-align:right;font-weight:bold;color:#ffd27a" id="lbRec2">--:--</div>
         </div>
       </div>
-    </aside>
+    </div>
   </div>
 
-  <!-- footer -->
-  <div class="lb-foot">
-    <div class="lb-quick">
-      <button class="lb-q" data-act="hero"><span>🦸</span><b>Heróis</b></button>
-      <button class="lb-q" data-act="how"><span>📖</span><b>Ajuda</b></button>
-    </div>
-    <button class="lb-play" id="lbPlay"><b>JOGAR</b><span id="lbPlaySub">— escolher classe —</span></button>
+  <!-- bottom tab bar -->
+  <div class="lb-tabs">
+    <button class="lb-tab active" data-act="home"><span class="ti">🏰</span>INÍCIO</button>
+    <button class="lb-tab" data-act="hero"><span class="ti">🦸</span>HERÓIS</button>
+    <button class="lb-tab" data-act="shop"><span class="ti">🛒</span>LOJA</button>
+    <button class="lb-tab" data-act="how"><span class="ti">📖</span>AJUDA</button>
   </div>
 </div>
 
@@ -697,7 +727,6 @@ $('shopBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{ if(selectedClass) startGame(selectedClass); };
-$('pauseBtn').onclick=togglePause;
 $('gearBtn').onclick=togglePause;
 $('resumeBtn').onclick=togglePause;
 $('quitBtn').onclick=()=>{ running=false; toMenu(); };
@@ -1101,7 +1130,7 @@ function updateHUD(){
   $('s-level').textContent=P.level;
   $('s-time').textContent=fmtTime(gameTime);
   $('s-hp').textContent=Math.ceil(clamp(P.hp,0,P.maxhp))+'/'+Math.ceil(P.maxhp);
-  $('s-kills').textContent=kills; $('s-kills2').textContent=kills;
+  $('s-kills2').textContent=kills;
   $('s-gold').textContent=Math.floor(gold);
   const wv=((wave-1)%10)+1; $('s-wave').textContent=wv; $('waveFill').style.width=(wv/10*100)+'%';
   drawCd($('ultCd'),P.ultCd,P.ultMax,$('ultBtn'));
