@@ -169,6 +169,113 @@
   .wave-track { flex:1; height:9px; border-radius:6px; background:#1a1830; border:1px solid #2a2750; overflow:hidden; }
   .wave-fill { height:100%; width:0%; background:linear-gradient(90deg,#ff7a2a,#ffd27a); transition:width .25s; }
   .wave-skulls { font-size:12px; color:#cdd2f0; white-space:nowrap; display:flex; align-items:center; gap:4px; }
+
+  /* ============ LOBBY (main menu) ============ */
+  .screen.lobby{ display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch;
+    gap:0; padding:0; text-align:left;
+    background:linear-gradient(rgba(5,6,10,.7),rgba(5,6,10,.93)),
+      radial-gradient(circle at 70% 28%, rgba(42,34,86,.6), rgba(5,6,10,.98));
+    overflow-y:auto; }
+
+  /* top bar */
+  .lb-top{ display:flex; align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;
+    padding:max(10px,env(safe-area-inset-top)) 14px 8px; }
+  .lb-prof{ display:flex; align-items:center; gap:9px; background:rgba(13,12,28,.7);
+    border:1px solid #2a2750; border-radius:14px; padding:6px 10px 6px 7px; }
+  .lb-ava{ width:42px; height:42px; border-radius:11px; background:linear-gradient(160deg,#241c4a,#0d0c1c);
+    border:2px solid #ffd27a; display:flex; align-items:center; justify-content:center; font-size:21px;
+    flex-shrink:0; overflow:hidden; box-shadow:0 0 10px rgba(255,210,122,.3); }
+  .lb-ava img{ width:100%; height:100%; object-fit:cover; }
+  .lb-prof-info{ min-width:92px; }
+  .lb-pname{ font-size:13px; font-weight:bold; color:#fff; white-space:nowrap; }
+  .lb-pname span{ color:#6a6f92; font-weight:normal; font-size:11px; }
+  .lb-pxp{ height:7px; margin-top:4px; border-radius:5px; background:#1a1830; border:1px solid #2a2750; overflow:hidden; }
+  .lb-pxp>div{ height:100%; width:0; background:linear-gradient(90deg,#7af5ff,#b388ff); transition:width .3s; }
+  .lb-plvl{ width:30px; height:30px; border-radius:8px; background:#0d0c1c; border:1px solid #ffd27a; color:#ffd27a;
+    font-weight:bold; font-size:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .lb-res{ display:flex; gap:8px; }
+  .lb-cur{ display:flex; align-items:center; gap:6px; background:rgba(13,12,28,.7); border:1px solid #2a2750;
+    border-radius:12px; padding:7px 12px; font-weight:bold; font-size:14px; color:#fff; }
+  .lb-cur .ic{ font-size:15px; color:#ffd27a; }
+
+  /* body grid */
+  .lb-body{ flex:1; display:grid; grid-template-columns:1fr; gap:12px; padding:6px 14px; min-height:0; }
+  .lb-nav{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; -webkit-overflow-scrolling:touch; }
+  .lb-navbtn{ flex:0 0 auto; display:flex; align-items:center; gap:7px; background:rgba(13,12,28,.6);
+    border:1px solid #2a2750; border-radius:12px; padding:9px 14px; color:#9aa0c0; font-weight:bold; font-size:13px;
+    cursor:pointer; position:relative; white-space:nowrap; transition:.12s; touch-action:manipulation; }
+  .lb-navbtn .ni{ font-size:16px; }
+  .lb-navbtn.active{ color:#ffd27a; border-color:#ffd27a; background:linear-gradient(160deg,#241c4a,#0d0c1c);
+    box-shadow:0 0 12px rgba(255,210,122,.25); }
+  .lb-navbtn:active{ transform:scale(.96); }
+  .lb-dot{ position:absolute; top:5px; right:7px; width:8px; height:8px; border-radius:50%; background:#ff4d4d;
+    box-shadow:0 0 6px #ff4d4d; }
+
+  /* hero stage */
+  .lb-hero{ position:relative; border-radius:18px; overflow:hidden; min-height:300px;
+    background:radial-gradient(circle at 62% 32%, rgba(46,38,92,.7), rgba(5,6,10,.96));
+    border:1px solid #2a2750; display:flex; align-items:flex-end; }
+  .lb-portrait{ position:absolute; right:0; top:0; bottom:0; width:58%; display:flex; align-items:center; justify-content:center; }
+  .lb-portrait img{ height:94%; max-width:100%; object-fit:contain; filter:drop-shadow(0 12px 26px rgba(0,0,0,.65)); }
+  .lb-pemoji{ font-size:118px; filter:drop-shadow(0 12px 26px rgba(0,0,0,.65)); }
+  .lb-heroinfo{ position:relative; z-index:2; padding:18px; max-width:64%; }
+  .lb-hclass{ font-size:11px; letter-spacing:2px; color:#9aa0c0; }
+  .lb-hname{ font-size:clamp(24px,7vw,40px); font-weight:900; line-height:1; margin:2px 0 5px; }
+  .lb-hsub{ font-size:12px; color:#9aa0c0; margin-bottom:11px; line-height:1.4; }
+  .lb-hstats{ display:flex; flex-direction:column; gap:7px; }
+  .lb-st{ display:flex; align-items:center; gap:8px; font-size:12px; color:#cdd2f0;
+    background:rgba(13,12,28,.55); border:1px solid #2a2750; border-radius:9px; padding:5px 9px; max-width:250px; }
+  .lb-st .ic{ font-size:14px; width:16px; text-align:center; }
+  .lb-st .k{ color:#6a6f92; width:58px; font-size:10px; letter-spacing:1px; }
+  .lb-st b{ color:#fff; margin-left:auto; text-align:right; }
+  .lb-arrow{ position:absolute; z-index:3; top:50%; transform:translateY(-50%); width:34px; height:34px;
+    border-radius:50%; background:rgba(13,12,28,.82); border:1px solid #ffd27a; color:#ffd27a; font-size:20px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; }
+  .lb-arrow.l{ left:8px; } .lb-arrow.r{ right:8px; }
+  .lb-arrow:active{ transform:translateY(-50%) scale(.9); }
+
+  /* aside panels */
+  .lb-aside{ display:flex; flex-direction:column; gap:12px; }
+  .lb-panel{ background:linear-gradient(160deg,#171436,#0d0c1c); border:1px solid #2a2750; border-radius:16px; padding:14px; }
+  .lb-ptitle{ font-size:13px; font-weight:bold; letter-spacing:1px; color:#ffd27a; margin-bottom:12px;
+    display:flex; justify-content:space-between; align-items:center; }
+  .lb-ptitle .more{ font-size:11px; color:#7af5ff; cursor:pointer; }
+  .lb-obj{ margin-bottom:13px; } .lb-obj:last-child{ margin-bottom:0; }
+  .lb-objrow{ display:flex; justify-content:space-between; font-size:13px; color:#cdd2f0; }
+  .lb-objn{ color:#9aa0c0; font-size:12px; }
+  .lb-objbar{ height:8px; margin:5px 0; border-radius:5px; background:#1a1830; border:1px solid #2a2750; overflow:hidden; }
+  .lb-objbar>div{ height:100%; background:linear-gradient(90deg,#7af5ff,#b388ff); }
+  .lb-objrew{ font-size:11px; color:#ffd27a; }
+  .lb-season{ display:flex; align-items:center; gap:12px; }
+  .lb-seal{ width:54px; height:54px; border-radius:12px; background:linear-gradient(160deg,#241c4a,#0d0c1c);
+    border:2px solid #ffd27a; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0;
+    box-shadow:0 0 12px rgba(255,210,122,.3); }
+  .lb-seasoninfo{ flex:1; min-width:0; }
+  .lb-seasoninfo .t{ font-size:14px; color:#fff; font-weight:bold; }
+  .lb-seasoninfo .s{ font-size:11px; color:#9aa0c0; margin:2px 0; }
+
+  /* footer */
+  .lb-foot{ display:flex; align-items:stretch; gap:10px; padding:8px 14px max(12px,env(safe-area-inset-bottom)); }
+  .lb-quick{ display:flex; gap:8px; }
+  .lb-q{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    background:rgba(13,12,28,.7); border:1px solid #2a2750; border-radius:12px; padding:6px 12px; color:#cdd2f0;
+    cursor:pointer; font-size:10px; touch-action:manipulation; }
+  .lb-q span{ font-size:20px; } .lb-q:active{ transform:scale(.95); }
+  .lb-play{ flex:1; border:none; cursor:pointer; border-radius:16px; padding:12px;
+    background:linear-gradient(180deg,#ffe9a8,#ffd27a 45%,#e0a23c); color:#3a2600;
+    box-shadow:0 6px 20px rgba(255,200,90,.45), inset 0 1px 0 rgba(255,255,255,.6);
+    display:flex; flex-direction:column; align-items:center; touch-action:manipulation; }
+  .lb-play b{ font-size:25px; font-weight:900; letter-spacing:3px; line-height:1; }
+  .lb-play span{ font-size:11px; color:#5a3d10; margin-top:3px; }
+  .lb-play:active{ transform:scale(.98); }
+
+  @media(min-width:760px) and (orientation:landscape){
+    .lb-body{ grid-template-columns:172px 1fr 290px; grid-template-areas:"nav hero aside"; align-items:stretch; }
+    .lb-nav{ grid-area:nav; flex-direction:column; overflow:visible; }
+    .lb-navbtn{ width:100%; }
+    .lb-hero{ grid-area:hero; }
+    .lb-aside{ grid-area:aside; overflow-y:auto; }
+  }
 </style>
 </head>
 <body>
@@ -218,15 +325,73 @@
 <!-- Joystick -->
 <div id="joy"><div id="joyBase"><span class="jtick n"></span><span class="jtick e"></span><span class="jtick s"></span><span class="jtick w"></span></div><div id="joyKnob"></div></div>
 
-<!-- MAIN MENU -->
-<div class="screen" id="menu">
-  <h1>CRÔNICAS<br>DO VAZIO</h1>
-  <p class="sub">RPG Survivor. Sobreviva ondas infinitas. Ataques automáticos — só desviar e evoluir.</p>
-  <button class="btn" id="playBtn">▶ JOGAR</button>
-  <button class="btn ghost" id="shopBtn">🛒 Loja de Melhorias</button>
-  <button class="btn ghost" id="howBtn">Como jogar</button>
-  <p class="tips" id="menuGold"></p>
-  <p class="tips" id="record"></p>
+<!-- MAIN MENU (LOBBY) -->
+<div class="screen lobby" id="menu">
+  <!-- top bar -->
+  <div class="lb-top">
+    <div class="lb-prof">
+      <div class="lb-ava" id="lbAva"><span>🛡️</span></div>
+      <div class="lb-prof-info">
+        <div class="lb-pname">Herói<span id="lbTag">#0001</span></div>
+        <div class="lb-pxp"><div id="lbPxp"></div></div>
+      </div>
+      <div class="lb-plvl" id="lbPlvl">1</div>
+    </div>
+    <div class="lb-res">
+      <div class="lb-cur"><span class="ic">✦</span><span id="lbGold">0</span></div>
+      <div class="lb-cur"><span class="ic">🏆</span><span id="lbRec">--:--</span></div>
+    </div>
+  </div>
+
+  <!-- body -->
+  <div class="lb-body">
+    <nav class="lb-nav" id="lbNav">
+      <button class="lb-navbtn active" data-act="home"><span class="ni">⚔️</span><span>JOGAR</span></button>
+      <button class="lb-navbtn" data-act="hero"><span class="ni">🦸</span><span>HERÓI</span></button>
+      <button class="lb-navbtn" data-act="shop"><span class="ni">🛒</span><span>LOJA</span><i class="lb-dot" id="lbShopDot" style="display:none"></i></button>
+      <button class="lb-navbtn" data-act="how"><span class="ni">📖</span><span>COMO JOGAR</span></button>
+    </nav>
+
+    <div class="lb-hero">
+      <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
+      <button class="lb-arrow l" id="lbPrev">‹</button>
+      <button class="lb-arrow r" id="lbNext">›</button>
+      <div class="lb-heroinfo">
+        <div class="lb-hclass">CLASSE</div>
+        <div class="lb-hname" id="lbHName">Nome</div>
+        <div class="lb-hsub" id="lbHSub">desc</div>
+        <div class="lb-hstats" id="lbHStats"></div>
+      </div>
+    </div>
+
+    <aside class="lb-aside">
+      <div class="lb-panel">
+        <div class="lb-ptitle">OBJETIVOS<span class="more" data-act="shop">VER LOJA ›</span></div>
+        <div id="lbObjs"></div>
+      </div>
+      <div class="lb-panel">
+        <div class="lb-ptitle">PROGRESSO</div>
+        <div class="lb-season">
+          <div class="lb-seal">🏆</div>
+          <div class="lb-seasoninfo">
+            <div class="t">Crônicas do Vazio</div>
+            <div class="s">Melhor sobrevivência</div>
+            <div class="lb-objbar"><div id="lbSeasonBar" style="width:0%"></div></div>
+          </div>
+          <div style="text-align:right;font-weight:bold;color:#ffd27a" id="lbRec2">--:--</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- footer -->
+  <div class="lb-foot">
+    <div class="lb-quick">
+      <button class="lb-q" data-act="hero"><span>🦸</span><b>Heróis</b></button>
+      <button class="lb-q" data-act="how"><span>📖</span><b>Ajuda</b></button>
+    </div>
+    <button class="lb-play" id="lbPlay"><b>JOGAR</b><span id="lbPlaySub">— escolher classe —</span></button>
+  </div>
 </div>
 
 <!-- HOW TO PLAY -->
@@ -463,16 +628,74 @@ bindBtn($('dashBtn'),doDash); bindBtn($('ultBtn'),doUlt);
 // ---------- Menu wiring ----------
 function loadRecord(){ return parseInt(localStorage.getItem('void_record')||'0',10); }
 function saveRecord(t){ if(t>loadRecord()) localStorage.setItem('void_record',String(Math.floor(t))); }
-function refreshRecord(){ const r=loadRecord(); $('record').textContent = r? '🏆 Recorde: '+fmtTime(r) : ''; }
-function updateMenuGold(){ $('menuGold').textContent='✦ Ouro: '+bankGold; }
-refreshRecord(); updateMenuGold();
+// ---------- Lobby ----------
+let lobbyIdx=0;
+function renderHero(){
+  const c=CLASSES[lobbyIdx]; selectedClass=c;
+  $('lbHName').textContent=c.name; $('lbHName').style.color=c.color;
+  $('lbHSub').textContent=c.desc;
+  $('lbHStats').innerHTML=
+    `<div class="lb-st"><span class="ic" style="color:#ff5a7a">❤</span><span class="k">VIDA</span><b>${c.hp}</b></div>`+
+    `<div class="lb-st"><span class="ic" style="color:#7af5ff">👟</span><span class="k">VELOC.</span><b>${c.speed.toFixed(1)}</b></div>`+
+    `<div class="lb-st"><span class="ic">${c.ult.icon}</span><span class="k">ULT</span><b style="color:#ffd27a">${c.ult.name}</b></div>`+
+    `<div class="lb-st"><span class="ic">🔸</span><span class="k">PASSIVA</span><b>${c.passive}</b></div>`;
+  const data=localStorage.getItem(charImgKey(c.id))||DEFAULT_CHAR_IMAGES[c.id];
+  const img=$('lbPortrait'),em=$('lbPemoji');
+  if(data){ img.src=data; img.style.display='block'; em.style.display='none'; }
+  else{ img.style.display='none'; em.style.display='block'; em.textContent=c.icon; }
+  $('lbPlaySub').textContent='— '+c.name+' —';
+}
+function renderLobby(){
+  $('lbGold').textContent=bankGold.toLocaleString('pt-BR');
+  const rec=loadRecord(); $('lbRec').textContent=$('lbRec2').textContent=rec?fmtTime(rec):'--:--';
+  let bought=0,maxTot=0,afford=false;
+  META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; bought+=l; maxTot+=u.max;
+    if(l<u.max && bankGold>=u.cost(l)) afford=true; });
+  $('lbPlvl').textContent=bought+1;
+  $('lbPxp').style.width=(maxTot?bought/maxTot*100:0)+'%';
+  $('lbTag').textContent='#'+String(1001+bought);
+  $('lbShopDot').style.display=afford?'block':'none';
+  $('lbSeasonBar').style.width=Math.min(100,rec/600*100)+'%'; // 10min = full bar
+  const objs=$('lbObjs'); objs.innerHTML='';
+  META_UPGRADES.slice(0,3).forEach(u=>{
+    const lvl=META[u.id]||0, maxed=lvl>=u.max, pct=lvl/u.max*100;
+    objs.insertAdjacentHTML('beforeend',
+      `<div class="lb-obj"><div class="lb-objrow"><span>${u.icon} ${u.name}</span>`+
+      `<span class="lb-objn">${lvl}/${u.max}</span></div>`+
+      `<div class="lb-objbar"><div style="width:${pct}%"></div></div>`+
+      `<div class="lb-objrew">${maxed?'✔ Máximo':'Próx. nível: '+u.cost(lvl)+' ✦'}</div></div>`);
+  });
+  // avatar mirrors hero portrait
+  const cd=localStorage.getItem(charImgKey(CLASSES[lobbyIdx].id))||DEFAULT_CHAR_IMAGES[CLASSES[lobbyIdx].id];
+  $('lbAva').innerHTML = cd?`<img src="${cd}" alt="">`:`<span>${CLASSES[lobbyIdx].icon}</span>`;
+  document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n.dataset.act==='home'));
+  renderHero();
+}
+// compat shims (called from elsewhere)
+function refreshRecord(){ if($('lbRec')) renderLobby(); }
+function updateMenuGold(){ if($('lbGold')) renderLobby(); }
 
-$('playBtn').onclick=()=>{ buildClassCards(); show('select'); };
-$('shopBtn').onclick=()=>{ buildShop(); show('shop'); };
-$('shopBack').onclick=()=>{ updateMenuGold(); show('menu'); };
-$('howBtn').onclick=()=>show('how');
+function lobbyAct(a){
+  if(a==='home'){ /* already home */ }
+  else if(a==='hero'){ buildClassCards(); show('select'); }
+  else if(a==='shop'){ buildShop(); show('shop'); }
+  else if(a==='how'){ show('how'); }
+}
+document.querySelectorAll('#menu [data-act]').forEach(b=>{
+  b.onclick=()=>{
+    if(b.classList.contains('lb-navbtn'))
+      document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n===b));
+    lobbyAct(b.dataset.act);
+  };
+});
+$('lbPlay').onclick=()=>{ if(selectedClass) startGame(selectedClass); };
+$('lbPrev').onclick=()=>{ lobbyIdx=(lobbyIdx-1+CLASSES.length)%CLASSES.length; renderLobby(); };
+$('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); };
+renderLobby();
+
+$('shopBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('howBack').onclick=()=>show('menu');
-$('selBack').onclick=()=>show('menu');
+$('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{ if(selectedClass) startGame(selectedClass); };
 $('pauseBtn').onclick=togglePause;
 $('gearBtn').onclick=togglePause;
