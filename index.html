@@ -578,6 +578,13 @@ const CLASSES=[
     ult:{id:'reap',name:'Ceifar Almas',icon:'💀',cd:15,desc:'Explode tudo perto e cura muito.'},
     passive:'cura ao matar', stats:'❤️120 · 💀 Ceifar',
     init:P=>{ P.healOnKill=2; }},
+  {id:'warrior',icon:'🪓',name:'Guerreiro',desc:'Machado giratório brutal.',color:'#ff8a5a',start:'whip',
+    rarity:'rare', startLevel:1, unlockCost:400, isLocked:true,
+    attrs:{hp:150, speed:2.7, attack:20, defense:12},
+    abilities:['Chicote','Furacão de Aço'],
+    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:14,desc:'Gira cortando tudo + invencível 3s.'},
+    passive:'+3 armadura inicial', stats:'❤️150 · 🌀 Furacão',
+    init:P=>{ P.armor+=3; }},
 ];
 // compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
 // img: arquivo de arte na pasta Img. Por padrão "Img/<id>.png".
@@ -654,6 +661,7 @@ const ENEMIES=[
   {id:'swarm', name:'Enxame',     c:'#9aff7a', r:7,  hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
   {id:'fast',  name:'Veloz',      c:'#ffd27a', r:9,  hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
   {id:'tank',  name:'Brutamonte', c:'#c08bff', r:20, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
+  {id:'ghost', name:'Espectro',   c:'#aaeeff', r:10, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
 ];
 
 // ---------- Chefes (configuráveis; aparecem por tempo, não por peso) ----------
