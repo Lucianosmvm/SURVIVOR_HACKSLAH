@@ -646,6 +646,8 @@ const WEAPONS={
 //  Campos:
 //    id       string  identificador único
 //    name     string  nome (exibido em telas/depuração)
+//    icon     string  emoji exibido sobre o inimigo (placeholder até a arte)
+//    img      string  (opcional) arquivo de arte. Padrão "Img/enemy_<id>.png"
 //    c        string  cor (hex)
 //    r        number   raio / tamanho
 //    hp       number   vida base (escalada pela dificuldade no spawn)
@@ -657,19 +659,25 @@ const WEAPONS={
 //    weight   number   peso relativo de spawn entre os elegíveis
 // =====================================================================
 const ENEMIES=[
-  {id:'grunt', name:'Lacaio',     c:'#ff7a7a', r:12, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
-  {id:'swarm', name:'Enxame',     c:'#9aff7a', r:7,  hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
-  {id:'fast',  name:'Veloz',      c:'#ffd27a', r:9,  hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
-  {id:'tank',  name:'Brutamonte', c:'#c08bff', r:20, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
-  {id:'ghost', name:'Espectro',   c:'#aaeeff', r:10, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
+  {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
+  {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
+  {id:'fast',  name:'Veloz',      icon:'🦂', c:'#ffd27a', r:9,  hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
+  {id:'tank',  name:'Brutamonte', icon:'🐗', c:'#c08bff', r:20, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
+  {id:'ghost', name:'Espectro',   icon:'👻', c:'#aaeeff', r:10, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
 ];
 
 // ---------- Chefes (configuráveis; aparecem por tempo, não por peso) ----------
 //  Mesmos campos dos inimigos + boss:true. `warn` é o aviso exibido ao surgir.
 const BOSSES=[
-  {id:'void', name:'Chefe do Vazio', c:'#ff4da6', r:38, hp:600, spd:1.0, dmg:30, xp:40, gold:40,
+  {id:'void', name:'Chefe do Vazio', icon:'💀', c:'#ff4da6', r:38, hp:600, spd:1.0, dmg:30, xp:40, gold:40,
     boss:true, warn:'⚠️ CHEFE DO VAZIO!'},
 ];
+
+// img: arquivo de arte na pasta Img. Por padrão "Img/enemy_<id>.png".
+//      Enquanto o arquivo não existir, desenha o emoji (icon) sobre a bolinha.
+[...ENEMIES, ...BOSSES].forEach(t=>{ t.img=t.img||('Img/enemy_'+t.id+'.png'); });
+const enemyImages={}; // id -> Image (pré-carregadas para desenho no jogo)
+[...ENEMIES, ...BOSSES].forEach(t=>{ const im=new Image(); im.src=t.img; enemyImages[t.id]=im; });
 
 // Sorteia um tipo de inimigo entre os elegíveis pelo tempo de jogo (por peso).
 function pickEnemyType(){
@@ -683,7 +691,7 @@ function pickEnemyType(){
 //  scaleSpd=true aplica o leve aumento de velocidade por dificuldade (inimigos comuns).
 function makeEnemy(t,ang,R,diff,scaleSpd,extra){
   return Object.assign({
-    x:P.x+Math.cos(ang)*R, y:P.y+Math.sin(ang)*R, r:t.r, c:t.c,
+    x:P.x+Math.cos(ang)*R, y:P.y+Math.sin(ang)*R, r:t.r, c:t.c, id:t.id, icon:t.icon,
     hp:t.hp*diff, maxhp:t.hp*diff,
     spd:scaleSpd ? t.spd*(0.9+diff*0.05) : t.spd,
     dmg:t.dmg, xp:t.xp, gold:t.gold, hit:0, kb:{x:0,y:0}, freeze:0
@@ -1352,7 +1360,17 @@ function render(){
     cx.save();
     cx.fillStyle=e.freeze>0?'#9ad8ff':(e.hit>0?'#fff':e.c);
     cx.shadowColor=e.c;cx.shadowBlur=e.boss?20:6;
-    cx.beginPath();cx.arc(e.x,e.y,e.r,0,TAU);cx.fill();cx.restore();
+    cx.beginPath();cx.arc(e.x,e.y,e.r,0,TAU);cx.fill();
+    const eimg=enemyImages[e.id];
+    if(eimg&&eimg.complete&&eimg.naturalWidth){
+      cx.shadowBlur=0;
+      cx.beginPath();cx.arc(e.x,e.y,e.r,0,TAU);cx.clip();
+      cx.drawImage(eimg,e.x-e.r,e.y-e.r,e.r*2,e.r*2);
+    } else if(e.icon&&e.hit<=0&&e.freeze<=0){
+      cx.shadowBlur=0;cx.font=Math.round(e.r*1.6)+'px sans-serif';
+      cx.textAlign='center';cx.textBaseline='middle';cx.fillText(e.icon,e.x,e.y+1);
+    }
+    cx.restore();
     if(e.maxhp>30){cx.fillStyle='#000';cx.fillRect(e.x-e.r,e.y-e.r-7,e.r*2,4);
       cx.fillStyle='#ff5a7a';cx.fillRect(e.x-e.r,e.y-e.r-7,e.r*2*clamp(e.hp/e.maxhp,0,1),4);}
   }
