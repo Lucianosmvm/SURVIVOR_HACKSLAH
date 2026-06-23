@@ -390,11 +390,6 @@
       </div>
 
       <div class="lb-panel">
-        <div class="lb-ptitle">OBJETIVOS<span class="more" data-act="shop">VER LOJA ›</span></div>
-        <div id="lbObjs"></div>
-      </div>
-
-      <div class="lb-panel">
         <div class="lb-ptitle">PROGRESSO</div>
         <div class="lb-season">
           <div class="lb-seal">🏆</div>
@@ -680,15 +675,6 @@ function renderLobby(){
   $('lbTag').textContent='#'+String(1001+bought);
   $('lbShopDot').style.display=afford?'block':'none';
   $('lbSeasonBar').style.width=Math.min(100,rec/600*100)+'%'; // 10min = full bar
-  const objs=$('lbObjs'); objs.innerHTML='';
-  META_UPGRADES.slice(0,3).forEach(u=>{
-    const lvl=META[u.id]||0, maxed=lvl>=u.max, pct=lvl/u.max*100;
-    objs.insertAdjacentHTML('beforeend',
-      `<div class="lb-obj"><div class="lb-objrow"><span>${u.icon} ${u.name}</span>`+
-      `<span class="lb-objn">${lvl}/${u.max}</span></div>`+
-      `<div class="lb-objbar"><div style="width:${pct}%"></div></div>`+
-      `<div class="lb-objrew">${maxed?'✔ Máximo':'Próx. nível: '+u.cost(lvl)+' ✦'}</div></div>`);
-  });
   // avatar mirrors hero portrait
   const cd=localStorage.getItem(charImgKey(CLASSES[lobbyIdx].id))||DEFAULT_CHAR_IMAGES[CLASSES[lobbyIdx].id];
   $('lbAva').innerHTML = (cd?`<img src="${cd}" alt="">`:`<span>${CLASSES[lobbyIdx].icon}</span>`)
