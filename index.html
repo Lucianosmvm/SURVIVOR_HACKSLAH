@@ -212,7 +212,7 @@
   .lb-menu:active{ transform:scale(.93); }
 
   /* ---- body: left rail + center ---- */
-  .lb-body{ flex:1; display:grid; grid-template-columns:64px 1fr; gap:10px; padding:10px 12px 6px; min-height:0;
+  .lb-body{ flex:1; display:grid; grid-template-columns:1fr; gap:10px; padding:10px 12px 6px; min-height:0;
     overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .lb-nav{ display:flex; flex-direction:column; gap:12px; }
   .lb-navbtn{ display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none;
@@ -296,11 +296,11 @@
   .lb-tab:active{ transform:scale(.94); }
 
   @media(min-width:760px) and (orientation:landscape){
-    .lb-body{ grid-template-columns:74px 1.1fr .9fr; align-items:start; }
+    .lb-body{ grid-template-columns:1.1fr .9fr; align-items:start; }
     .lb-main{ display:contents; }
-    .lb-hero{ grid-column:2; min-height:340px; }
-    .lb-play{ grid-column:2; }
-    .lb-panel{ grid-column:3; }
+    .lb-hero{ grid-column:1; min-height:340px; }
+    .lb-play{ grid-column:1; }
+    .lb-panel{ grid-column:2; }
   }
 </style>
 </head>
@@ -370,12 +370,6 @@
 
   <!-- body: left rail + center -->
   <div class="lb-body">
-    <nav class="lb-nav" id="lbNav">
-      <button class="lb-navbtn" data-act="hero"><span class="ni">🦸</span><span>HERÓI</span></button>
-      <button class="lb-navbtn" data-act="shop"><span class="ni">🛒</span><span>LOJA</span><i class="lb-dot" id="lbShopDot" style="display:none"></i></button>
-      <button class="lb-navbtn" data-act="how"><span class="ni">📖</span><span>AJUDA</span></button>
-    </nav>
-
     <div class="lb-main">
       <div class="lb-hero">
         <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
@@ -419,7 +413,7 @@
   <div class="lb-tabs">
     <button class="lb-tab active" data-act="home"><span class="ti">🏰</span>INÍCIO</button>
     <button class="lb-tab" data-act="hero"><span class="ti">🦸</span>HERÓIS</button>
-    <button class="lb-tab" data-act="shop"><span class="ti">🛒</span>LOJA</button>
+    <button class="lb-tab" data-act="shop"><span class="ti">🛒</span>LOJA<i class="lb-dot" id="lbShopDot" style="display:none"></i></button>
     <button class="lb-tab" data-act="how"><span class="ti">📖</span>AJUDA</button>
   </div>
 </div>
