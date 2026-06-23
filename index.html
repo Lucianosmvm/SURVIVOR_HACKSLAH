@@ -697,7 +697,8 @@ function renderLobby(){
   });
   // avatar mirrors hero portrait
   const cd=localStorage.getItem(charImgKey(CLASSES[lobbyIdx].id))||DEFAULT_CHAR_IMAGES[CLASSES[lobbyIdx].id];
-  $('lbAva').innerHTML = cd?`<img src="${cd}" alt="">`:`<span>${CLASSES[lobbyIdx].icon}</span>`;
+  $('lbAva').innerHTML = (cd?`<img src="${cd}" alt="">`:`<span>${CLASSES[lobbyIdx].icon}</span>`)
+    +`<span class="lb-plvl" id="lbPlvl">${bought+1}</span>`;
   document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n.dataset.act==='home'));
   renderHero();
 }
