@@ -60,6 +60,31 @@
   .card .desc { font-size:clamp(11px,3vw,13px); color:#9aa0c0; line-height:1.35; }
   .card .stats { font-size:11px; color:#6a6f92; margin-top:6px; }
 
+  /* ---- Bloqueio / desbloqueio de personagens ---- */
+  .card .rarity { font-size:10px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; }
+  .card.locked { opacity:.78; }
+  .card.locked .portrait { filter:grayscale(.85) brightness(.6); }
+  .card .lockbadge { position:absolute; top:10px; right:10px; font-size:18px; }
+  .card { position:relative; }
+  .unlockbtn { margin-top:8px; display:inline-block; background:#241a3a; border:1px solid #ffd27a55;
+    color:#ffd27a; font-size:12px; font-weight:bold; padding:6px 14px; border-radius:10px; cursor:pointer; touch-action:manipulation; }
+  .unlockbtn:active { transform:scale(.95); }
+  .unlockbtn.cant { color:#ff7a7a; border-color:#ff7a7a55; }
+  /* retrato do lobby bloqueado */
+  .lb-portrait.locked img, .lb-portrait.locked .lb-pemoji { filter:grayscale(.85) brightness(.55); }
+  .lb-portrait.locked::after { content:'🔒'; position:absolute; inset:0; display:flex;
+    align-items:center; justify-content:center; font-size:42px; text-shadow:0 2px 8px #000; }
+  .lb-portrait { position:relative; }
+  /* botão principal em modo desbloquear */
+  .lb-play.unlock { background:linear-gradient(160deg,#3a2a14,#241a0c); border:1px solid #ffd27a66; }
+
+  /* ---- Toast de UI (menus) ---- */
+  #uiToast { position:fixed; left:50%; top:18%; transform:translateX(-50%) translateY(-12px);
+    background:#1a1640; border:1px solid #4a3f7a; color:#fff; font-weight:bold; font-size:15px;
+    padding:12px 20px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.5); z-index:9999;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:80vw; text-align:center; }
+  #uiToast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
   /* ---- Upgrades ---- */
   .upgrades { display:flex; flex-direction:column; gap:12px; width:100%; max-width:440px; }
   .up { background:linear-gradient(160deg,#171436,#0d0c1c); border:1px solid #2a2750; border-radius:14px;
@@ -346,6 +371,9 @@
   <div class="actbtn dash" id="dashBtn"><span class="abadge">2</span><span class="aicon">💨</span><canvas class="cdmask" id="dashCd"></canvas><span class="acdnum" id="dashCdNum">0.0</span></div>
 </div>
 
+<!-- Toast de UI (menus, fora da partida) -->
+<div id="uiToast"></div>
+
 <!-- Joystick -->
 <div id="joy"><div id="joyBase"><span class="jtick n"></span><span class="jtick e"></span><span class="jtick s"></span><span class="jtick w"></span></div><div id="joyKnob"></div></div>
 
@@ -376,7 +404,7 @@
         <button class="lb-arrow l" id="lbPrev">‹</button>
         <button class="lb-arrow r" id="lbNext">›</button>
         <div class="lb-chapter">
-          <div class="lb-hclass">CLASSE</div>
+          <div class="lb-hclass" id="lbHClass">CLASSE</div>
           <div class="lb-hname" id="lbHName">Nome</div>
         </div>
         <div class="lb-hsub" id="lbHSub"></div>
@@ -492,20 +520,90 @@ function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); 
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
 // ---------- Data ----------
+// =====================================================================
+//  CATÁLOGO DE PERSONAGENS  (fonte única de verdade)
+// ---------------------------------------------------------------------
+//  Para adicionar um novo personagem: basta acrescentar uma entrada
+//  neste array. Nenhuma outra parte do código precisa ser alterada.
+//
+//  Campos:
+//    id           string  identificador único (usado em persistência)
+//    icon         string  emoji exibido quando não há imagem
+//    name         string  nome exibido
+//    desc         string  descrição curta
+//    color        string  cor tema (hex)
+//    start        string  arma inicial (chave em WEAPONS)
+//    rarity       string  chave em RARITIES (cor/rótulo)
+//    startLevel   number   nível inicial do herói
+//    attrs        object  atributos exibidos {hp,speed,attack,defense}
+//                          -> hp e speed também alimentam a jogabilidade
+//    abilities    array   nomes de habilidades exibidos
+//    ult          object  {id,name,icon,cd,desc}
+//    passive      string  texto da passiva
+//    unlockCost   number  custo em ouro p/ desbloquear (0 = grátis)
+//    isLocked     bool     estado PADRÃO de bloqueio (sobrescrito pelo save)
+//    init(P)      func     aplica a passiva ao jogador ao iniciar a partida
+// =====================================================================
+const RARITIES={
+  common:   {label:'Comum',     color:'#9aa0c0'},
+  rare:     {label:'Raro',      color:'#7af5ff'},
+  epic:     {label:'Épico',     color:'#c08bff'},
+  legendary:{label:'Lendário',  color:'#ffd27a'},
+};
 const CLASSES=[
-  {id:'mage',icon:'🔮',name:'Arcanista',desc:'Raios teleguiados.',hp:90,speed:3.0,color:'#7af5ff',start:'bolt',
+  {id:'mage',icon:'🔮',name:'Arcanista',desc:'Raios teleguiados.',color:'#7af5ff',start:'bolt',
+    rarity:'common', startLevel:1, unlockCost:0, isLocked:false,
+    attrs:{hp:90, speed:3.0, attack:18, defense:4},
+    abilities:['Raio Arcano','Tempestade Arcana'],
     ult:{id:'storm',name:'Tempestade Arcana',icon:'🌩️',cd:16,desc:'Chuva de raios na tela toda.'},
-    passive:'+25% dano de projétil', stats:'❤️90 · 🌩️ Tempestade'},
-  {id:'knight',icon:'⚔️',name:'Cavaleiro',desc:'Lâminas orbitais.',hp:160,speed:2.6,color:'#ffd27a',start:'blade',
+    passive:'+25% dano de projétil', stats:'❤️90 · 🌩️ Tempestade',
+    init:P=>{ P.boltBonus=0.25; }},
+  {id:'knight',icon:'⚔️',name:'Cavaleiro',desc:'Lâminas orbitais.',color:'#ffd27a',start:'blade',
+    rarity:'rare', startLevel:1, unlockCost:300, isLocked:true,
+    attrs:{hp:160, speed:2.6, attack:12, defense:14},
+    abilities:['Lâmina Orbital','Furacão de Aço'],
     ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:14,desc:'Gira cortando tudo + invencível 3s.'},
-    passive:'+2 armadura inicial', stats:'❤️160 · 🌀 Furacão'},
-  {id:'ranger',icon:'🏹',name:'Caçadora',desc:'Flechas perfurantes.',hp:110,speed:3.4,color:'#9aff7a',start:'arrow',
+    passive:'+2 armadura inicial', stats:'❤️160 · 🌀 Furacão',
+    init:P=>{ P.armor+=2; }},
+  {id:'ranger',icon:'🏹',name:'Caçadora',desc:'Flechas perfurantes.',color:'#9aff7a',start:'arrow',
+    rarity:'epic', startLevel:1, unlockCost:600, isLocked:true,
+    attrs:{hp:110, speed:3.4, attack:15, defense:6},
+    abilities:['Flecha Perfurante','Chuva de Flechas'],
     ult:{id:'volley',name:'Chuva de Flechas',icon:'🎯',cd:13,desc:'Salva de 24 flechas em leque.'},
-    passive:'+50% alcance de coleta', stats:'❤️110 · 🎯 Salva'},
-  {id:'warlock',icon:'☠️',name:'Necromante',desc:'Aura que drena vida.',hp:120,speed:2.8,color:'#c08bff',start:'aura',
+    passive:'+50% alcance de coleta', stats:'❤️110 · 🎯 Salva',
+    init:P=>{ P.magnet=240; }},
+  {id:'warlock',icon:'☠️',name:'Necromante',desc:'Aura que drena vida.',color:'#c08bff',start:'aura',
+    rarity:'legendary', startLevel:1, unlockCost:1000, isLocked:true,
+    attrs:{hp:120, speed:2.8, attack:13, defense:8},
+    abilities:['Aura Sombria','Ceifar Almas'],
     ult:{id:'reap',name:'Ceifar Almas',icon:'💀',cd:15,desc:'Explode tudo perto e cura muito.'},
-    passive:'cura ao matar', stats:'❤️120 · 💀 Ceifar'},
+    passive:'cura ao matar', stats:'❤️120 · 💀 Ceifar',
+    init:P=>{ P.healOnKill=2; }},
 ];
+// compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
+CLASSES.forEach(c=>{ c.hp=c.attrs.hp; c.speed=c.attrs.speed; });
+
+// ---------- Desbloqueio de personagens (persistente) ----------
+// Estado salvo em localStorage como {id:true} para cada desbloqueado.
+const UNLOCK_KEY='void_unlocks';
+function loadUnlocks(){
+  let saved={};
+  try{ saved=JSON.parse(localStorage.getItem(UNLOCK_KEY))||{}; }catch(e){ saved={}; }
+  // personagens com isLocked=false já nascem desbloqueados
+  CLASSES.forEach(c=>{ if(!c.isLocked) saved[c.id]=true; });
+  return saved;
+}
+function saveUnlocks(){ localStorage.setItem(UNLOCK_KEY,JSON.stringify(unlocks)); }
+function isUnlocked(id){ return !!unlocks[id]; }
+let unlocks=loadUnlocks();
+// Tenta desbloquear com ouro. Retorna {ok,reason}.
+function tryUnlock(cls){
+  if(isUnlocked(cls.id)) return {ok:true};
+  if(bankGold < cls.unlockCost) return {ok:false, reason:'gold'};
+  bankGold-=cls.unlockCost; saveBank();
+  unlocks[cls.id]=true; saveUnlocks();
+  return {ok:true};
+}
 // ---------- Character images (uploaded, persisted) ----------
 const charImages={}; // id -> Image
 const charImgKey=id=>'void_charimg_'+id;
@@ -651,18 +749,35 @@ function saveRecord(t){ if(t>loadRecord()) localStorage.setItem('void_record',St
 let lobbyIdx=0;
 function renderHero(){
   const c=CLASSES[lobbyIdx]; selectedClass=c;
+  const locked=!isUnlocked(c.id), rar=RARITIES[c.rarity]||RARITIES.common;
   $('lbHName').textContent=c.name; $('lbHName').style.color=c.color;
+  $('lbHClass').textContent=rar.label.toUpperCase(); $('lbHClass').style.color=rar.color;
   $('lbHSub').textContent=c.desc;
+  // ATRIBUTOS painel — data-driven a partir de attrs + ult + passiva
+  const a=c.attrs;
   $('lbHStats').innerHTML=
-    `<div class="lb-st"><span class="ic" style="color:#ff5a7a">❤</span><span class="k">VIDA</span><b>${c.hp}</b></div>`+
-    `<div class="lb-st"><span class="ic" style="color:#7af5ff">👟</span><span class="k">VELOC.</span><b>${c.speed.toFixed(1)}</b></div>`+
+    `<div class="lb-st"><span class="ic" style="color:#ff5a7a">❤</span><span class="k">VIDA</span><b>${a.hp}</b></div>`+
+    `<div class="lb-st"><span class="ic" style="color:#7af5ff">👟</span><span class="k">VELOC.</span><b>${a.speed.toFixed(1)}</b></div>`+
+    `<div class="lb-st"><span class="ic" style="color:#ffb27a">⚔️</span><span class="k">ATAQUE</span><b>${a.attack}</b></div>`+
+    `<div class="lb-st"><span class="ic" style="color:#9aff7a">🛡️</span><span class="k">DEFESA</span><b>${a.defense}</b></div>`+
     `<div class="lb-st"><span class="ic">${c.ult.icon}</span><span class="k">ULT</span><b style="color:#ffd27a">${c.ult.name}</b></div>`+
     `<div class="lb-st"><span class="ic">🔸</span><span class="k">PASSIVA</span><b>${c.passive}</b></div>`;
   const data=localStorage.getItem(charImgKey(c.id))||DEFAULT_CHAR_IMAGES[c.id];
-  const img=$('lbPortrait'),em=$('lbPemoji');
+  const img=$('lbPortrait'),em=$('lbPemoji'),hero=$('lbPortrait').parentElement;
   if(data){ img.src=data; img.style.display='block'; em.style.display='none'; }
   else{ img.style.display='none'; em.style.display='block'; em.textContent=c.icon; }
-  $('lbPlaySub').textContent='— '+c.name+' —';
+  // overlay de cadeado no retrato
+  hero.classList.toggle('locked',locked);
+  // botão principal: JOGAR (desbloqueado) ou DESBLOQUEAR custo (bloqueado)
+  const play=$('lbPlay');
+  play.classList.toggle('unlock',locked);
+  if(locked){
+    play.querySelector('b').textContent='🔒 DESBLOQUEAR';
+    $('lbPlaySub').textContent=c.unlockCost.toLocaleString('pt-BR')+' ✦';
+  }else{
+    play.querySelector('b').textContent='JOGAR';
+    $('lbPlaySub').textContent='— '+c.name+' —';
+  }
 }
 function renderLobby(){
   $('lbGold').textContent=bankGold.toLocaleString('pt-BR');
@@ -699,7 +814,14 @@ document.querySelectorAll('#menu [data-act]').forEach(b=>{
     lobbyAct(b.dataset.act);
   };
 });
-$('lbPlay').onclick=()=>{ if(selectedClass) startGame(selectedClass); };
+$('lbPlay').onclick=()=>{
+  if(!selectedClass) return;
+  if(isUnlocked(selectedClass.id)){ startGame(selectedClass); return; }
+  // bloqueado: tentar desbloquear com ouro
+  const r=tryUnlock(selectedClass);
+  if(r.ok){ menuToast('✅ '+selectedClass.name+' desbloqueado!'); renderLobby(); }
+  else menuToast('Ouro insuficiente! Faltam '+(selectedClass.unlockCost-bankGold).toLocaleString('pt-BR')+' ✦');
+};
 $('lbPrev').onclick=()=>{ lobbyIdx=(lobbyIdx-1+CLASSES.length)%CLASSES.length; renderLobby(); };
 $('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); };
 renderLobby();
@@ -707,7 +829,13 @@ renderLobby();
 $('shopBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
-$('startBtn').onclick=()=>{ if(selectedClass) startGame(selectedClass); };
+$('startBtn').onclick=()=>{
+  if(!selectedClass) return;
+  if(isUnlocked(selectedClass.id)){ startGame(selectedClass); return; }
+  const r=tryUnlock(selectedClass);
+  if(r.ok){ menuToast('✅ '+selectedClass.name+' desbloqueado!'); buildClassCards(); renderLobby(); }
+  else menuToast('Ouro insuficiente! Faltam '+(selectedClass.unlockCost-bankGold).toLocaleString('pt-BR')+' ✦');
+};
 $('gearBtn').onclick=togglePause;
 $('resumeBtn').onclick=togglePause;
 $('quitBtn').onclick=()=>{ running=false; toMenu(); };
@@ -742,23 +870,40 @@ function buildClassCards(){
   const el=$('classes'); el.innerHTML='';
   CLASSES.forEach(c=>{
     const d=document.createElement('div'); d.className='card';
+    const locked=!isUnlocked(c.id), rar=RARITIES[c.rarity]||RARITIES.common;
+    if(locked) d.classList.add('locked');
     const data=localStorage.getItem(charImgKey(c.id))||DEFAULT_CHAR_IMAGES[c.id], hasImg=!!data;
-    d.innerHTML=`<div class="portrait">`+
+    d.innerHTML=(locked?`<span class="lockbadge">🔒</span>`:``)+
+      `<div class="rarity" style="color:${rar.color}">${rar.label}</div>`+
+      `<div class="portrait">`+
         `<img class="pimg ${hasImg?'':'hidden'}" ${hasImg?`src="${data}"`:''} alt="">`+
         `<span class="pemoji ${hasImg?'hidden':''}">${c.icon}</span>`+
       `</div>`+
       `<div class="name" style="color:${c.color}">${c.name}</div>`+
       `<div class="desc">${c.desc}</div>`+
       `<div class="stats">${c.ult.icon} <b>${c.ult.name}</b><br>${c.ult.desc}<br>🔸 ${c.passive}</div>`+
-      `<label class="upbtn"><span class="uptxt">📷 ${hasImg?'Trocar':'Enviar'} imagem</span>`+
-        `<input type="file" accept="image/*" class="upinput" hidden></label>`;
+      (locked
+        ? `<div class="unlockbtn">🔓 Desbloquear · ${c.unlockCost.toLocaleString('pt-BR')} ✦</div>`
+        : `<label class="upbtn"><span class="uptxt">📷 ${hasImg?'Trocar':'Enviar'} imagem</span>`+
+            `<input type="file" accept="image/*" class="upinput" hidden></label>`);
     d.onclick=()=>{
       selectedClass=c;
       [...el.children].forEach(ch=>ch.classList.remove('sel'));
       d.classList.add('sel');
-      const b=$('startBtn'); b.disabled=false; b.style.opacity='1'; b.textContent='▶ Jogar de '+c.name;
+      const b=$('startBtn'); b.disabled=false; b.style.opacity='1';
+      b.textContent=isUnlocked(c.id) ? '▶ Jogar de '+c.name
+        : '🔒 Desbloquear · '+c.unlockCost.toLocaleString('pt-BR')+' ✦';
     };
+    // botão desbloquear dentro do card (atalho)
+    const ub=d.querySelector('.unlockbtn');
+    if(ub) ub.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      const r=tryUnlock(c);
+      if(r.ok){ menuToast('✅ '+c.name+' desbloqueado!'); buildClassCards(); renderLobby(); }
+      else menuToast('Ouro insuficiente! Faltam '+(c.unlockCost-bankGold).toLocaleString('pt-BR')+' ✦');
+    });
     const label=d.querySelector('.upbtn'), input=d.querySelector('.upinput');
+    if(label && input){
     label.addEventListener('click',ev=>ev.stopPropagation()); // open picker, don't select card
     input.addEventListener('change',ev=>{
       const file=ev.target.files[0]; if(!file)return;
@@ -772,6 +917,7 @@ function buildClassCards(){
       });
       input.value='';
     });
+    }
     el.appendChild(d);
   });
   const b=$('startBtn'); b.disabled=true; b.style.opacity='.5'; b.textContent='Selecione uma classe';
@@ -792,13 +938,10 @@ function renderBuild(){
 // ---------- Start ----------
 function startGame(cls){
   P={ x:0,y:0,r:14,cls,color:cls.color, maxhp:cls.hp,hp:cls.hp,baseSpeed:cls.speed,
-    level:1,xp:0,xpNext:5, weapons:{}, might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,invuln:0,_bossWave:false,
+    level:cls.startLevel||1,xp:0,xpNext:5, weapons:{}, might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,invuln:0,_bossWave:false,
     ultCd:0,ultMax:cls.ult.cd,dashCd:0,dashMax:1.6,dashT:0,dx:0,dy:0,facing:{x:1,y:0} };
-  // class passives
-  if(cls.id==='knight')P.armor=2;
-  if(cls.id==='ranger')P.magnet=240;
-  if(cls.id==='mage')P.boltBonus=0.25;
-  if(cls.id==='warlock')P.healOnKill=2;
+  // class passive (data-driven: defined per character in CLASSES[].init)
+  if(typeof cls.init==='function') cls.init(P);
   // permanent meta upgrades
   P.goldMul=1; P.xpMul=1;
   META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; if(l>0)u.apply(P,l); });
@@ -871,6 +1014,12 @@ function spawnBoss(){
   toast('⚠️ CHEFE DO VAZIO!');
 }
 function toast(m){toastMsg=m;toastT=2.5;}
+// toast visível nos menus (o toast do canvas só aparece durante a partida)
+let _uiToastT=null;
+function menuToast(m){
+  const el=$('uiToast'); el.textContent=m; el.classList.add('show');
+  clearTimeout(_uiToastT); _uiToastT=setTimeout(()=>el.classList.remove('show'),2200);
+}
 
 // ---------- Combat ----------
 function damageEnemy(e,dmg,kbx=0,kby=0){
