@@ -493,6 +493,7 @@
   <p class="sub" id="go-stats"></p>
   <p class="tips" id="go-record"></p>
   <button class="btn" id="retryBtn">↺ Jogar de novo</button>
+  <button class="btn ghost" id="seedRetryBtn">🌱 Repetir seed</button>
   <button class="btn ghost" id="menuBtn">Menu principal</button>
 </div>
 
@@ -939,6 +940,7 @@ $('gearBtn').onclick=togglePause;
 $('resumeBtn').onclick=togglePause;
 $('quitBtn').onclick=()=>{ running=false; toMenu(); };
 $('retryBtn').onclick=()=>{ buildClassCards(); show('select'); };
+$('seedRetryBtn').onclick=()=>{ if(P&&P.cls){ pendingSeed=runSeed; startGame(P.cls); } };
 $('menuBtn').onclick=toMenu;
 
 function toMenu(){
@@ -1373,6 +1375,9 @@ function drawMinimap(){
   mmCx.save(); mmCx.beginPath(); mmCx.arc(ocx,ocy,R,0,TAU); mmCx.clip();
   mmCx.fillStyle='rgba(10,12,28,.35)'; mmCx.fillRect(0,0,w,h);
   if(P){
+    for(const k of arena.rocks){ const dx=(k.x-P.x)/range*R, dy=(k.y-P.y)/range*R, kr=Math.max(1.5,k.r/range*R);
+      if(dx*dx+dy*dy>(R+kr)*(R+kr))continue;
+      mmCx.fillStyle='rgba(150,150,180,.5)'; mmCx.beginPath(); mmCx.arc(ocx+dx,ocy+dy,kr,0,TAU); mmCx.fill(); }
     for(const o of orbs){ const dx=(o.x-P.x)/range*R, dy=(o.y-P.y)/range*R;
       if(dx*dx+dy*dy>R*R)continue;
       mmCx.fillStyle='rgba(122,245,255,.8)'; mmCx.beginPath(); mmCx.arc(ocx+dx,ocy+dy,1.4,0,TAU); mmCx.fill(); }
