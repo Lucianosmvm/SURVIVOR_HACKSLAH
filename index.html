@@ -696,20 +696,55 @@ const BOSSES=[
 //  (rochas) num anel ao redor do spawn — o centro fica livre. Rochas empurram
 //  jogador E inimigos, criando cobertura tática que muda a cada seed.
 const BIOMES=[
-  {id:'void',  name:'Vazio',   grid:'rgba(60,60,110,0.15)',  bg:'#05060a', rock:'#2a2750'},
-  {id:'ember', name:'Brasa',   grid:'rgba(140,70,40,0.16)',  bg:'#0a0604', rock:'#3a2418'},
-  {id:'frost', name:'Geada',   grid:'rgba(70,120,150,0.16)', bg:'#04080c', rock:'#1a2e3a'},
-  {id:'venom', name:'Peçonha', grid:'rgba(70,130,60,0.16)',  bg:'#040a05', rock:'#1c3a1c'},
+  {id:'void',  name:'Vazio',   grid:'rgba(60,60,110,0.15)',  bg:'#05060a', rock:'#2a2750', blob:'120,120,210', spark:'180,180,255'},
+  {id:'ember', name:'Brasa',   grid:'rgba(140,70,40,0.16)',  bg:'#0a0604', rock:'#3a2418', blob:'200,90,40',   spark:'255,170,90'},
+  {id:'frost', name:'Geada',   grid:'rgba(70,120,150,0.16)', bg:'#04080c', rock:'#1a2e3a', blob:'80,160,200',  spark:'160,230,255'},
+  {id:'venom', name:'Peçonha', grid:'rgba(70,130,60,0.16)',  bg:'#040a05', rock:'#1c3a1c', blob:'90,180,70',   spark:'150,255,120'},
 ];
-let arena={biome:BIOMES[0], rocks:[]};
+let arena={biome:BIOMES[0], rocks:[], decor:[], chunks:{}, seed:0};
+const CHUNK=900;                               // tamanho do bloco em px
+// PRNG próprio por bloco — determinístico, NÃO consome o stream srng (não afeta spawn).
+function chunkRng(cx,cy){
+  let s=(arena.seed ^ Math.imul(cx,374761393) ^ Math.imul(cy,668265263))>>>0;
+  return ()=>{ s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296; };
+}
+// Gera (1x) rochas + decoração de fundo de um bloco e guarda em cache.
+function ensureChunk(cx,cy){
+  const key=cx+'_'+cy;
+  if(arena.chunks[key])return arena.chunks[key];
+  const rng=chunkRng(cx,cy), rocks=[], decor=[];
+  const n=2+Math.floor(rng()*4);              // 2..5 rochas por bloco
+  for(let i=0;i<n;i++){
+    const x=cx*CHUNK+rng()*CHUNK, y=cy*CHUNK+rng()*CHUNK;
+    if(x*x+y*y<200*200)continue;              // centro (spawn) sempre livre
+    rocks.push({ x, y, r:22+rng()*30 });
+  }
+  // decoração: manchas suaves do bioma — quebra a uniformidade sem afetar gameplay
+  const dn=6+Math.floor(rng()*8);             // 6..13 manchas por bloco
+  for(let i=0;i<dn;i++){
+    const x=cx*CHUNK+rng()*CHUNK, y=cy*CHUNK+rng()*CHUNK;
+    const speck=rng()<0.35;                    // ~1/3 pontinhos brilhantes, resto blobs grandes
+    decor.push({ x, y,
+      r: speck ? 1.5+rng()*2.5 : 30+rng()*90,
+      c: speck ? arena.biome.spark : arena.biome.blob,
+      a: speck ? 0.25+rng()*0.35 : 0.04+rng()*0.06 });
+  }
+  return arena.chunks[key]={rocks, decor};
+}
+// Mantém arena.rocks/arena.decor = blocos num raio ao redor do player.
+function updateRocks(){
+  const cx=Math.floor(P.x/CHUNK), cy=Math.floor(P.y/CHUNK), R=2, rocks=[], decor=[];
+  for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){
+    const c=ensureChunk(cx+dx,cy+dy);
+    for(let i=0;i<c.rocks.length;i++)rocks.push(c.rocks[i]);
+    for(let i=0;i<c.decor.length;i++)decor.push(c.decor[i]);
+  }
+  arena.rocks=rocks; arena.decor=decor;
+}
 function genArena(){
   arena.biome=spick(BIOMES);
-  arena.rocks=[];
-  const n=14+Math.floor(srng()*12);            // 14..25 obstáculos
-  for(let i=0;i<n;i++){
-    const ang=srand(0,TAU), R=srand(180,1400);  // anel: centro (spawn) sempre livre
-    arena.rocks.push({ x:Math.cos(ang)*R, y:Math.sin(ang)*R, r:srand(22,52) });
-  }
+  arena.seed=(runSeed ^ 0x9e3779b9)>>>0;       // deriva seed das rochas da seed da partida
+  arena.chunks={}; arena.rocks=[];
   document.body.style.background=arena.biome.bg;
 }
 // Empurra um corpo {x,y,r} para fora de qualquer rocha que esteja sobrepondo.
@@ -741,7 +776,7 @@ function makeEnemy(t,ang,R,diff,scaleSpd,extra){
     x:P.x+Math.cos(ang)*R, y:P.y+Math.sin(ang)*R, r:t.r, c:t.c, id:t.id, icon:t.icon,
     hp:t.hp*diff, maxhp:t.hp*diff,
     spd:scaleSpd ? t.spd*(0.9+diff*0.05) : t.spd,
-    dmg:t.dmg, xp:t.xp, gold:t.gold, hit:0, kb:{x:0,y:0}, freeze:0
+    dmg:t.dmg*(scaleSpd?Math.max(1,diff*0.6):1), xp:t.xp, gold:t.gold, hit:0, kb:{x:0,y:0}, freeze:0
   }, extra||{});
 }
 
@@ -1087,11 +1122,14 @@ function applyUpgrade(u){
 
 // ---------- Spawning ----------
 function spawnEnemy(){
-  const ang=srand(0,TAU), R=Math.hypot(W,H)/2+60, diff=1+gameTime/45;
+  const cycle=Math.floor((wave-1)/10);                   // 0,1,2... cada volta das ondas
+  const ang=srand(0,TAU), R=Math.hypot(W,H)/2+60;
+  const diff=(1+gameTime/45)*(1+cycle*0.4);              // +40% status por ciclo
   enemies.push(makeEnemy(pickEnemyType(), ang, R, diff, true));
 }
 function spawnBoss(){
-  const ang=srand(0,TAU),R=Math.hypot(W,H)/2+80,diff=1+gameTime/30;
+  const cycle=Math.floor((wave-1)/10);
+  const ang=srand(0,TAU),R=Math.hypot(W,H)/2+80,diff=(1+gameTime/30)*(1+cycle*0.4);
   // rotação de chefe: alterna pela lista a cada invocação (ordem seedada no 1º)
   const b=BOSSES[(bossCount + bossStart) % BOSSES.length]; bossCount++;
   enemies.push(makeEnemy(b, ang, R, diff, false, {boss:true}));
@@ -1264,6 +1302,8 @@ function loop(now){
 }
 function update(dt){
   gameTime+=dt; wave=1+Math.floor(gameTime/30);
+  const newCycle=Math.floor((wave-1)/10);
+  if(newCycle>(P._cycle||0)){ P._cycle=newCycle; toast('🔥 Ciclo '+(newCycle+1)+' — inimigos +'+(newCycle*40)+'% mais fortes'); }
   spawnTimer-=dt; const rate=Math.max(0.12,0.9-gameTime*0.006);
   if(spawnTimer<=0){spawnTimer=rate;spawnEnemy();if(gameTime>20&&srng()<0.3)spawnEnemy();}
   if(Math.floor(gameTime)>0&&Math.floor(gameTime)%60===0&&!P._bossWave){P._bossWave=true;spawnBoss();}
@@ -1277,6 +1317,7 @@ function update(dt){
   if(m>0.05)P.facing={x:mx/(m||1),y:my/(m||1)};
   if(P.dashT>0){ P.dashT-=dt; P.x+=P.dx*14*60*dt; P.y+=P.dy*14*60*dt; }
   else { P.x+=mx*P.baseSpeed*60*dt; P.y+=my*P.baseSpeed*60*dt; }
+  updateRocks();              // gera/atualiza rochas dos blocos ao redor do player
   collideRocks(P);
   if(P.invuln>0)P.invuln-=dt;
   if(P.dashCd>0)P.dashCd-=dt; if(P.ultCd>0)P.ultCd-=dt;
@@ -1415,6 +1456,11 @@ function render(){
   let sx=0,sy=0; if(shake>0.3){sx=rand(-shake,shake);sy=rand(-shake,shake);}
   cx.translate(W/2-P.x+sx, H/2-P.y+sy);
 
+  // decoração de fundo (manchas/pontos do bioma) — sob a grade, varia por região
+  for(const d of arena.decor){
+    cx.fillStyle=`rgba(${d.c},${d.a})`;
+    cx.beginPath();cx.arc(d.x,d.y,d.r,0,TAU);cx.fill();
+  }
   drawGrid();
   // obstáculos da arena (rochas) — desenhados sob tudo
   for(const k of arena.rocks){
