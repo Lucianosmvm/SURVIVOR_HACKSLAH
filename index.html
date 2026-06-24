@@ -561,7 +561,7 @@ const CLASSES=[
     rarity:'rare', startLevel:1, unlockCost:300, isLocked:true,
     attrs:{hp:160, speed:2.6, attack:12, defense:14},
     abilities:['Lâmina Orbital','Furacão de Aço'],
-    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:14,desc:'Gira cortando tudo + invencível 3s.'},
+    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
     passive:'+2 armadura inicial', stats:'❤️160 · 🌀 Furacão',
     init:P=>{ P.armor+=2; }},
   {id:'ranger',icon:'🏹',name:'Caçadora',desc:'Flechas perfurantes.',color:'#9aff7a',start:'arrow',
@@ -582,7 +582,7 @@ const CLASSES=[
     rarity:'rare', startLevel:1, unlockCost:400, isLocked:true,
     attrs:{hp:150, speed:2.7, attack:20, defense:12},
     abilities:['Chicote','Furacão de Aço'],
-    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:14,desc:'Gira cortando tudo + invencível 3s.'},
+    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
     passive:'+3 armadura inicial', stats:'❤️150 · 🌀 Furacão',
     init:P=>{ P.armor+=3; }},
 ];
@@ -1095,13 +1095,13 @@ function castUlt(id){
       beams.push({strike:true,x,y,delay:i*0.05,t:0,r:(70)*P.area,dmg:34*P.might});
     }
   } else if(id==='whirl'){
-    P.whirlT=3; P.invuln=Math.max(P.invuln,3);
+    P.whirlT=3; P.invuln=Math.max(P.invuln,1.5);
   } else if(id==='volley'){
     for(let s=0;s<24;s++){ const a=s/24*TAU;
       bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*11,vy:Math.sin(a)*11,r:6,dmg:22,life:1.4,pierce:99,c:'#9aff7a',type:'arrow',a});}
   } else if(id==='reap'){
     explodeAt(P.x,P.y,(220)*P.area,80*P.might,'#c08bff',1.0);
-    P.hp=Math.min(P.maxhp,P.hp+P.maxhp*0.35);
+    P.hp=Math.min(P.maxhp,P.hp+P.maxhp*0.20);
     particles.push({ring:true,x:P.x,y:P.y,r:8,max:240*P.area,t:0.6,c:'#c08bff'});
   }
 }
@@ -1122,8 +1122,9 @@ function fireWeapons(dt){
         bullets.push({x:P.x,y:P.y,vx:Math.cos(sa)*10,vy:Math.sin(sa)*10,r:5,dmg:8+L*3,life:1.2,pierce:2+L,c:'#9aff7a',type:'arrow',a:sa});}
     } else if(id==='blade'){ w.cd=0.016;
     } else if(id==='aura'){
-      w.cd=0.25; const rad=(70+L*16)*P.area;
-      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,3+L*1.5);P.hp=Math.min(P.maxhp,P.hp+0.15*L);}});
+      w.cd=0.25; const rad=(70+L*16)*P.area; let auraHit=false;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,3+L*1.5);auraHit=true;}});
+      if(auraHit)P.hp=Math.min(P.maxhp,P.hp+0.05*L);
     } else if(id==='nova'){
       w.cd=2.6/P.haste; const rad=(60+L*22)*P.area;
       particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.4,c:'#7af5ff'});
@@ -1233,6 +1234,7 @@ function update(dt){
     const rr=e.r+P.r;
     if(dist2(P,e)<rr*rr&&P.invuln<=0){
       P.hp-=Math.max(1,e.dmg-P.armor); P.invuln=0.5; shake=Math.min(shake+4,18);
+      combo=0; comboTimer=0; $('combo').style.opacity='0';
       for(let i=0;i<6;i++)particles.push({x:P.x,y:P.y,vx:rand(-2,2),vy:rand(-2,2),t:0.4,c:'#ff5a7a',r:2});
       if(P.hp<=0){gameOver();return;}
     }
