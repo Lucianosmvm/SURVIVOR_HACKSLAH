@@ -513,6 +513,19 @@ const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
 
+// ---------- RNG com seed (partidas reproduzíveis / roguelike) ----------
+// rand() (cosmético: partículas) continua usando Math.random.
+// srng()/srand()/spick() são SEEDADOS: alimentam geração de arena,
+// sorteio de inimigos, rotação de chefe e o draft de upgrades.
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let runSeed=0, srng=Math.random, pendingSeed=null;
+function setSeed(s){ runSeed=s>>>0; srng=mulberry32(runSeed); }
+const srand=(a,b)=>a+srng()*(b-a);          // float seedado em [a,b)
+const spick=arr=>arr[Math.floor(srng()*arr.length)];
+function randSeed(){ return (Math.random()*0xffffffff)>>>0; }
+function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0'); }
+function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
+
 // ---------- Screen manager ----------
 const SCREENS=['menu','how','select','shop','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
@@ -671,7 +684,40 @@ const ENEMIES=[
 const BOSSES=[
   {id:'void', name:'Chefe do Vazio', icon:'💀', c:'#ff4da6', r:38, hp:600, spd:1.0, dmg:30, xp:40, gold:40,
     boss:true, warn:'⚠️ CHEFE DO VAZIO!'},
+  {id:'ember', name:'Senhor das Brasas', icon:'🔥', c:'#ff7a2a', r:40, hp:720, spd:1.1, dmg:32, xp:48, gold:48,
+    boss:true, warn:'⚠️ SENHOR DAS BRASAS!'},
+  {id:'frost', name:'Rainha do Gelo', icon:'❄️', c:'#7af5ff', r:42, hp:780, spd:0.9, dmg:34, xp:52, gold:52,
+    boss:true, warn:'⚠️ RAINHA DO GELO!'},
 ];
+
+// ---------- Arena procedural (gerada por seed) ----------
+//  Cada partida sorteia um bioma (cor de fundo/grade) e espalha obstáculos
+//  (rochas) num anel ao redor do spawn — o centro fica livre. Rochas empurram
+//  jogador E inimigos, criando cobertura tática que muda a cada seed.
+const BIOMES=[
+  {id:'void',  name:'Vazio',   grid:'rgba(60,60,110,0.15)',  bg:'#05060a', rock:'#2a2750'},
+  {id:'ember', name:'Brasa',   grid:'rgba(140,70,40,0.16)',  bg:'#0a0604', rock:'#3a2418'},
+  {id:'frost', name:'Geada',   grid:'rgba(70,120,150,0.16)', bg:'#04080c', rock:'#1a2e3a'},
+  {id:'venom', name:'Peçonha', grid:'rgba(70,130,60,0.16)',  bg:'#040a05', rock:'#1c3a1c'},
+];
+let arena={biome:BIOMES[0], rocks:[]};
+function genArena(){
+  arena.biome=spick(BIOMES);
+  arena.rocks=[];
+  const n=14+Math.floor(srng()*12);            // 14..25 obstáculos
+  for(let i=0;i<n;i++){
+    const ang=srand(0,TAU), R=srand(180,1400);  // anel: centro (spawn) sempre livre
+    arena.rocks.push({ x:Math.cos(ang)*R, y:Math.sin(ang)*R, r:srand(22,52) });
+  }
+  document.body.style.background=arena.biome.bg;
+}
+// Empurra um corpo {x,y,r} para fora de qualquer rocha que esteja sobrepondo.
+function collideRocks(o){
+  for(const k of arena.rocks){
+    const dx=o.x-k.x, dy=o.y-k.y, rr=k.r+o.r, d=Math.hypot(dx,dy);
+    if(d<rr && d>0){ const push=rr-d; o.x+=dx/d*push; o.y+=dy/d*push; }
+  }
+}
 
 // img: arquivo de arte na pasta Img. Por padrão "Img/enemy_<id>.png".
 //      Enquanto o arquivo não existir, desenha o emoji (icon) sobre a bolinha.
@@ -683,7 +729,7 @@ const enemyImages={}; // id -> Image (pré-carregadas para desenho no jogo)
 function pickEnemyType(){
   const pool=ENEMIES.filter(t=>gameTime>=(t.minTime||0));
   const total=pool.reduce((s,t)=>s+(t.weight||1),0);
-  let roll=Math.random()*total;
+  let roll=srng()*total;
   for(const t of pool){ roll-=(t.weight||1); if(roll<=0) return t; }
   return pool[pool.length-1];
 }
@@ -732,7 +778,7 @@ function saveBank(){ localStorage.setItem('void_bank',String(bankGold)); }
 
 // ---------- State ----------
 let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[];
-let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0;
+let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0,bossCount=0,bossStart=0;
 let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null;
 let combo=0,comboTimer=0,beams=[];
 let bankGold=loadBank(), META=loadMeta();
@@ -974,6 +1020,9 @@ function renderBuild(){
 
 // ---------- Start ----------
 function startGame(cls){
+  setSeed(pendingSeed!=null ? pendingSeed : randSeed()); pendingSeed=null;
+  bossCount=0; bossStart=Math.floor(srng()*BOSSES.length);
+  genArena();
   P={ x:0,y:0,r:14,cls,color:cls.color, maxhp:cls.hp,hp:cls.hp,baseSpeed:cls.speed,
     level:cls.startLevel||1,xp:0,xpNext:5, weapons:{}, might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,invuln:0,_bossWave:false,
     ultCd:0,ultMax:cls.ult.cd,dashCd:0,dashMax:1.6,dashT:0,dx:0,dy:0,facing:{x:1,y:0} };
@@ -1014,7 +1063,7 @@ function upgradePool(){
   ];
   passives.forEach(p=>pool.push({type:'passive',...p,lvl:'Passiva'}));
   const out=[],copy=[...pool];
-  while(out.length<3 && copy.length) out.push(copy.splice(Math.floor(Math.random()*copy.length),1)[0]);
+  while(out.length<3 && copy.length) out.push(copy.splice(Math.floor(srng()*copy.length),1)[0]);
   return out;
 }
 function showLevelUp(){
@@ -1036,12 +1085,13 @@ function applyUpgrade(u){
 
 // ---------- Spawning ----------
 function spawnEnemy(){
-  const ang=Math.random()*TAU, R=Math.hypot(W,H)/2+60, diff=1+gameTime/45;
+  const ang=srand(0,TAU), R=Math.hypot(W,H)/2+60, diff=1+gameTime/45;
   enemies.push(makeEnemy(pickEnemyType(), ang, R, diff, true));
 }
 function spawnBoss(){
-  const ang=Math.random()*TAU,R=Math.hypot(W,H)/2+80,diff=1+gameTime/30;
-  const b=BOSSES[0]; // múltiplos chefes: trocar por sorteio/rotação aqui
+  const ang=srand(0,TAU),R=Math.hypot(W,H)/2+80,diff=1+gameTime/30;
+  // rotação de chefe: alterna pela lista a cada invocação (ordem seedada no 1º)
+  const b=BOSSES[(bossCount + bossStart) % BOSSES.length]; bossCount++;
   enemies.push(makeEnemy(b, ang, R, diff, false, {boss:true}));
   toast(b.warn||('⚠️ '+b.name));
 }
@@ -1199,7 +1249,7 @@ function loop(now){
 function update(dt){
   gameTime+=dt; wave=1+Math.floor(gameTime/30);
   spawnTimer-=dt; const rate=Math.max(0.12,0.9-gameTime*0.006);
-  if(spawnTimer<=0){spawnTimer=rate;spawnEnemy();if(gameTime>20&&Math.random()<0.3)spawnEnemy();}
+  if(spawnTimer<=0){spawnTimer=rate;spawnEnemy();if(gameTime>20&&srng()<0.3)spawnEnemy();}
   if(Math.floor(gameTime)>0&&Math.floor(gameTime)%60===0&&!P._bossWave){P._bossWave=true;spawnBoss();}
   if(Math.floor(gameTime)%60!==0)P._bossWave=false;
 
@@ -1211,6 +1261,7 @@ function update(dt){
   if(m>0.05)P.facing={x:mx/(m||1),y:my/(m||1)};
   if(P.dashT>0){ P.dashT-=dt; P.x+=P.dx*14*60*dt; P.y+=P.dy*14*60*dt; }
   else { P.x+=mx*P.baseSpeed*60*dt; P.y+=my*P.baseSpeed*60*dt; }
+  collideRocks(P);
   if(P.invuln>0)P.invuln-=dt;
   if(P.dashCd>0)P.dashCd-=dt; if(P.ultCd>0)P.ultCd-=dt;
   if(P.regen>0)P.hp=Math.min(P.maxhp,P.hp+P.regen*dt);
@@ -1231,6 +1282,7 @@ function update(dt){
     e.hit=Math.max(0,e.hit-dt); e._bladeCd=Math.max(0,(e._bladeCd||0)-dt); e.freeze=Math.max(0,e.freeze-dt);
     const a=Math.atan2(P.y-e.y,P.x-e.x), sp=e.spd*(e.freeze>0?0.3:1);
     e.x+=Math.cos(a)*sp*60*dt+e.kb.x; e.y+=Math.sin(a)*sp*60*dt+e.kb.y; e.kb.x*=0.8; e.kb.y*=0.8;
+    if(!e.boss)collideRocks(e);
     const rr=e.r+P.r;
     if(dist2(P,e)<rr*rr&&P.invuln<=0){
       P.hp-=Math.max(1,e.dmg-P.armor); P.invuln=0.5; shake=Math.min(shake+4,18);
@@ -1282,7 +1334,7 @@ function gameOver(){
   running=false; saveRecord(gameTime);
   const earned=Math.floor(gold); bankGold+=earned; saveBank();
   $('go-stats').innerHTML=`Sobreviveu <b>${fmtTime(gameTime)}</b> · Nível <b>${P.level}</b> · <b>${kills}</b> abates<br>+<b style="color:#ffd27a">${earned}</b> ✦ ganho · Total: <b style="color:#ffd27a">${bankGold}</b> ✦`;
-  $('go-record').textContent='🏆 Recorde: '+fmtTime(loadRecord())+'  ·  🛒 Gaste o ouro na Loja!';
+  $('go-record').innerHTML='🏆 Recorde: '+fmtTime(loadRecord())+' · 🌱 Seed <b>'+seedToStr(runSeed)+'</b> ('+arena.biome.name+')<br>🛒 Gaste o ouro na Loja!';
   $('hud').classList.add('hidden'); $('topRight').classList.add('hidden'); $('actions').classList.add('hidden'); $('wavebar').classList.add('hidden');
   $('combo').style.opacity='0'; joyEnd();
   show('gameover');
@@ -1343,6 +1395,11 @@ function render(){
   cx.translate(W/2-P.x+sx, H/2-P.y+sy);
 
   drawGrid();
+  // obstáculos da arena (rochas) — desenhados sob tudo
+  for(const k of arena.rocks){
+    cx.fillStyle=arena.biome.rock; cx.strokeStyle='rgba(0,0,0,.5)'; cx.lineWidth=2;
+    cx.beginPath();cx.arc(k.x,k.y,k.r,0,TAU);cx.fill();cx.stroke();cx.lineWidth=1;
+  }
   for(const f of floor){const a=(1-f.t/f.life)*0.4;
     cx.fillStyle=f.poison?`rgba(80,220,90,${a})`:`rgba(255,120,40,${a})`;
     cx.beginPath();cx.arc(f.x,f.y,f.r,0,TAU);cx.fill();}
@@ -1442,11 +1499,15 @@ function render(){
 }
 function drawGrid(){
   const g=70, x0=Math.floor((P.x-W/2)/g)*g, y0=Math.floor((P.y-H/2)/g)*g;
-  cx.strokeStyle='rgba(60,60,110,0.15)';cx.lineWidth=1;cx.beginPath();
+  cx.strokeStyle=arena.biome.grid;cx.lineWidth=1;cx.beginPath();
   for(let x=x0;x<P.x+W/2+g;x+=g){cx.moveTo(x,P.y-H/2-g);cx.lineTo(x,P.y+H/2+g);}
   for(let y=y0;y<P.y+H/2+g;y+=g){cx.moveTo(P.x-W/2-g,y);cx.lineTo(P.x+W/2+g,y);}
   cx.stroke();
 }
+
+// Seed via URL (?seed=ABC123 ou ?seed=12345) — partidas compartilháveis/reproduzíveis.
+{ const s=new URLSearchParams(location.search).get('seed');
+  if(s) pendingSeed = /^\d+$/.test(s) ? (s>>>0) : strToSeed(s); }
 
 show('menu');
 
