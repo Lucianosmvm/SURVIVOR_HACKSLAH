@@ -1036,7 +1036,7 @@ function startGame(cls){
   P.weapons[cls.start]={level:1,cd:0};
   enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];
   combo=0;comboTimer=0;
-  gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;
+  gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;acc=0;
   hideAllScreens();
   $('hud').classList.remove('hidden'); $('topRight').classList.remove('hidden'); $('actions').classList.remove('hidden'); $('wavebar').classList.remove('hidden');
   $('ultBtn').querySelector('.aicon').textContent=cls.ult.icon;
@@ -1240,11 +1240,25 @@ function updateBeams(dt){
   beams=beams.filter(b=> b.strike ? b.t<0.45 : b.t>0 );
 }
 
-// ---------- Loop ----------
+// ---------- Loop (passo fixo: simulação determinística p/ seed) ----------
+//  A física avança sempre em fatias de FIXED_DT, independente do FPS.
+//  Mesma seed => mesma sequência de updates => mesma partida em qualquer máquina.
+//  render() roda 1x por frame; o acumulador guarda o tempo sobrando.
+const FIXED_DT=1/60;
+let acc=0;
 function loop(now){
   if(!running)return;
-  let dt=(now-last)/1000; last=now; dt=Math.min(dt,0.05);
-  if(!paused)update(dt);
+  let frame=(now-last)/1000; last=now;
+  frame=Math.min(frame,0.25);                 // após travada do navegador, evita espiral
+  if(!paused){
+    acc+=frame;
+    let steps=0;
+    while(acc>=FIXED_DT && steps<8){           // teto de 8 passos/frame (anti-espiral)
+      update(FIXED_DT); acc-=FIXED_DT; steps++;
+      if(!running||paused)break;               // morte ou level-up cortam o backlog
+    }
+    if(steps>=8)acc=0;                          // descarta excesso se não acompanhou
+  }
   render();
   requestAnimationFrame(loop);
 }
@@ -1306,6 +1320,8 @@ function update(dt){
     if(b.holy){ b.spin=(b.spin||0)+dt*6; if(b._hitSet&&(b._clear||0)<b.life){} // re-hit handled below
       if(!b._ct)b._ct=0; b._ct-=dt; if(b._ct<=0){ if(b._hitSet)b._hitSet.clear(); b._ct=0.4; } }
     b.x+=b.vx*60*dt;b.y+=b.vy*60*dt;b.life-=dt;
+    // rochas bloqueiam projéteis retos (holy/bumerangue orbitam o jogador -> passam)
+    if(!b.holy&&!b.boomer){ for(const k of arena.rocks){ const rr=k.r+b.r; if(dist2(b,k)<rr*rr){ b.dead=true; break; } } }
     for(const e of enemies){if(e.dead||b.dead)continue;const rr=b.r+e.r;
       if(dist2(b,e)<rr*rr){if(!b._hitSet)b._hitSet=new Set();if(b._hitSet.has(e))continue;
         damageEnemy(e,b.dmg,b.vx,b.vy);b._hitSet.add(e);if(b.pierce>0)b.pierce--;else b.dead=true;}}
