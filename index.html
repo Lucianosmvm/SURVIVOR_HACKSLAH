@@ -599,6 +599,15 @@ const CLASSES=[
     ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
     passive:'+3 armadura inicial', stats:'❤️150 · 🌀 Furacão',
     init:P=>{ P.armor+=3; }},
+  {id:'barbarian',icon:'🪓',name:'Bárbaro',desc:'Viking com machado pesado.',color:'#7bbf5a',start:'whip',img:'Img/Barbaro.png',
+    rarity:'rare', startLevel:1, isLocked:false,
+    attrs:{hp:170, speed:2.6, attack:24, defense:10},
+    abilities:['Chicote','Furacão de Aço'],
+    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
+    passive:'+20 vida inicial', stats:'❤️170 · 🪓 Machado',
+    // folha 5 quadros em 1 linha = ciclo de caminhada
+    sprite:{ cols:5, rows:1, fps:9, anims:{ idle:{row:0,from:0,to:0}, walk:{row:0,from:0,to:4} } },
+    init:P=>{} },
 ];
 // compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
 // img: arquivo de arte na pasta Img. Por padrão "Img/<id>.png".
@@ -636,6 +645,32 @@ function loadCharImages(){
     if(data){ const im=new Image(); im.src=data; charImages[c.id]=im; } });
 }
 loadCharImages();
+
+// ---------- Spritesheet animation ----------
+// Personagens com `sprite` no CLASSES usam folha de sprites animada.
+// Config por personagem:
+//   sprite:{ cols, rows, fps, anims:{ nome:{row, from, to} } }
+//     cols/rows : grade de quadros na imagem (largura/altura do quadro = auto)
+//     fps       : quadros por segundo da animação
+//     anims     : cada animação aponta linha (row) e intervalo de quadros [from..to]
+// Para um novo personagem animado: corte a arte em grade uniforme e descreva aqui.
+function spriteFrame(sp, animName, t){
+  const a=sp.anims[animName]||sp.anims.idle||Object.values(sp.anims)[0];
+  const count=a.to-a.from+1;
+  const idx=count>1 ? a.from+(Math.floor(t*sp.fps)%count) : a.from;
+  return {idx, row:a.row};
+}
+function drawCharSprite(cx, sp, img, x, y, size, animName, t, flip){
+  const fw=img.naturalWidth/sp.cols, fh=img.naturalHeight/sp.rows;
+  const {idx,row}=spriteFrame(sp, animName, t);
+  const dispH=size, dispW=size*(fw/fh);          // preserva proporção do quadro
+  cx.save();
+  cx.translate(x,y);
+  if(flip)cx.scale(-1,1);
+  cx.drawImage(img, idx*fw, row*fh, fw, fh, -dispW/2, -dispH/2, dispW, dispH);
+  cx.restore();
+}
+
 const WEAPONS={
   bolt:{name:'Raio Arcano',icon:'🔮',desc:'Projétil teleguiado.'},
   blade:{name:'Lâmina Orbital',icon:'⚔️',desc:'Lâminas giram ao redor.'},
@@ -978,6 +1013,29 @@ function loadRecord(){ return parseInt(localStorage.getItem('void_record')||'0',
 function saveRecord(t){ if(t>loadRecord()) localStorage.setItem('void_record',String(Math.floor(t))); }
 // ---------- Lobby ----------
 let lobbyIdx=0;
+// Canvas do retrato (criado 1x). Evita toDataURL (quebra em file:// por taint de canvas).
+function portraitCanvas(host){
+  let cv=host.querySelector('canvas.lb-cv');
+  if(!cv){ cv=document.createElement('canvas'); cv.className='lb-cv';
+    cv.style.height='90%'; cv.style.width='auto';
+    cv.style.filter='drop-shadow(0 14px 30px rgba(0,0,0,.7))';
+    host.appendChild(cv); }
+  return cv;
+}
+function hidePortraitCanvas(img){ const cv=img.parentElement.querySelector('canvas.lb-cv'); if(cv)cv.style.display='none'; }
+// Desenha o 1º quadro da folha de sprites no canvas do retrato.
+function setPortraitFrame(img, c){
+  const sheet=charImages[c.id], cv=portraitCanvas(img.parentElement);
+  const draw=()=>{
+    const fw=sheet.naturalWidth/c.sprite.cols, fh=sheet.naturalHeight/c.sprite.rows;
+    cv.width=fw; cv.height=fh;
+    const g=cv.getContext('2d'); g.clearRect(0,0,fw,fh);
+    g.drawImage(sheet,0,0,fw,fh,0,0,fw,fh);
+    cv.style.display='block'; img.style.display='none';
+  };
+  if(sheet&&sheet.complete&&sheet.naturalWidth) draw();
+  else if(sheet) sheet.addEventListener('load',draw,{once:true});
+}
 function renderHero(){
   const c=CLASSES[lobbyIdx]; selectedClass=c;
   const locked=!isUnlocked(c.id), rar=RARITIES[c.rarity]||RARITIES.common;
@@ -999,8 +1057,10 @@ function renderHero(){
   if(data){
     // se o arquivo de imagem não existir, cai para o emoji
     img.onerror=()=>{ img.style.display='none'; em.style.display='block'; };
-    img.src=data; img.style.display='block'; em.style.display='none';
-  } else { img.style.display='none'; em.style.display='block'; }
+    if(c.sprite){ setPortraitFrame(img,c); }            // mostra canvas c/ 1º quadro, esconde img
+    else { img.src=data; img.style.display='block'; hidePortraitCanvas(img); }
+    em.style.display='none';
+  } else { img.style.display='none'; em.style.display='block'; hidePortraitCanvas(img); }
   // overlay de cadeado no retrato
   hero.classList.toggle('locked',locked);
   // botão principal: JOGAR (desbloqueado) ou DESBLOQUEAR custo (bloqueado)
@@ -1162,7 +1222,7 @@ function startGame(cls){
   genArena();
   P={ x:0,y:0,r:14,cls,color:cls.color, maxhp:cls.hp,hp:cls.hp,baseSpeed:cls.speed,
     level:cls.startLevel||1,xp:0,xpNext:5, weapons:{}, might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,invuln:0,_bossWave:false,
-    ultCd:0,ultMax:cls.ult.cd,dashCd:0,dashMax:1.6,dashT:0,dx:0,dy:0,facing:{x:1,y:0} };
+    ultCd:0,ultMax:cls.ult.cd,dashCd:0,dashMax:1.6,dashT:0,dx:0,dy:0,facing:{x:1,y:0},animT:0,moving:false };
   // class passive (data-driven: defined per character in CLASSES[].init)
   if(typeof cls.init==='function') cls.init(P);
   // permanent meta upgrades
@@ -1415,6 +1475,8 @@ function update(dt){
   mx+=joyVec.x; my+=joyVec.y;
   const m=Math.hypot(mx,my); if(m>1){mx/=m;my/=m;}
   if(m>0.05)P.facing={x:mx/(m||1),y:my/(m||1)};
+  P.moving = m>0.05 || P.dashT>0;          // estado p/ animação de caminhada
+  P.animT += dt;
   if(P.dashT>0){ P.dashT-=dt; P.x+=P.dx*14*60*dt; P.y+=P.dy*14*60*dt; }
   else { P.x+=mx*P.baseSpeed*60*dt; P.y+=my*P.baseSpeed*60*dt; }
   updateRocks();              // gera/atualiza rochas dos blocos ao redor do player
@@ -1674,13 +1736,19 @@ function render(){
 
   cx.save();
   if(P.invuln>0&&Math.floor(P.invuln*20)%2)cx.globalAlpha=0.5;
-  cx.fillStyle=P.color;cx.shadowColor=P.color;cx.shadowBlur=18;
-  cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.fill();
   const cimg=charImages[P.cls.id];
+  if(!P.cls.sprite){                          // disco colorido só p/ arte estática (sprite tem fundo transparente)
+    cx.fillStyle=P.color;cx.shadowColor=P.color;cx.shadowBlur=18;
+    cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.fill();
+  }
   if(cimg&&cimg.complete&&cimg.naturalWidth){
     cx.shadowBlur=0;
-    cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.clip();
-    cx.drawImage(cimg,P.x-P.r,P.y-P.r,P.r*2,P.r*2);
+    if(P.cls.sprite){                        // personagem animado: quadro da folha de sprites
+      drawCharSprite(cx,P.cls.sprite,cimg,P.x,P.y,P.r*2.7, P.moving?'walk':'idle', P.animT, P.facing.x<0);
+    } else {                                 // personagem estático: arte única recortada em círculo
+      cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.clip();
+      cx.drawImage(cimg,P.x-P.r,P.y-P.r,P.r*2,P.r*2);
+    }
   } else {
     cx.font='16px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(P.cls.icon,P.x,P.y+1);
   }
