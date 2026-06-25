@@ -701,7 +701,91 @@ const BIOMES=[
   {id:'frost', name:'Geada',   grid:'rgba(70,120,150,0.16)', bg:'#04080c', rock:'#1a2e3a', blob:'80,160,200',  spark:'160,230,255'},
   {id:'venom', name:'Peçonha', grid:'rgba(70,130,60,0.16)',  bg:'#040a05', rock:'#1c3a1c', blob:'90,180,70',   spark:'150,255,120'},
 ];
-let arena={biome:BIOMES[0], rocks:[], decor:[], chunks:{}, seed:0};
+// ---------- Objetos do mundo (defina aqui árvores, baús, arbustos...) ----------
+//  Cada tipo é espalhado proceduralmente pelos blocos. Para arte, coloque
+//  Img/obj_<id>.png (senão desenha o emoji 'icon').
+//   solid : empurra player/inimigos (colisão)
+//   n     : [min,max] quantos por bloco (900x900)
+//   minR  : raio livre ao redor do spawn (não nasce dentro)
+//   chest : ao encostar, coleta ouro/xp e some
+const WORLD_OBJECTS=[
+  {id:'tree',  icon:'🌳', r:38, solid:true,  n:[1,4], minR:220},
+  {id:'rock',  icon:'🪨', r:22, solid:true,  n:[0,2], minR:200},
+  {id:'bush',  icon:'🌿', r:18, solid:false, n:[1,3], minR:140},
+  {id:'flower',icon:'🌼', r:12, solid:false, n:[0,3], minR:120},
+  {id:'chest', icon:'📦', r:18, solid:false, n:[0,1], minR:300, chest:true, gold:40, xp:25},
+];
+// img + pré-carregamento (mesmo padrão dos inimigos)
+WORLD_OBJECTS.forEach(t=>{ t.img=t.img||('Img/obj_'+t.id+'.png'); });
+const objImages={};
+WORLD_OBJECTS.forEach(t=>{ const im=new Image(); im.src=t.img; objImages[t.id]=im; });
+
+// ---------- Chão (defina aqui os tipos de piso) ----------
+//  Cada tile do mundo sorteia 1 tipo (determinístico pela posição).
+//   c : cor sólida do tile
+//   w : peso (chance relativa). Maior = aparece mais.
+//  Arte opcional: Img/ground_<id>.png (tile repetido, senão usa a cor 'c').
+const TILE=70;                                 // tamanho do tile do chão (px)
+const GROUND=[
+  {id:'grass',  c:'#0c1410', w:70},            // grama base
+  {id:'grass2', c:'#0e1a12', w:22},            // grama variação
+  {id:'dirt',   c:'#171208', w:6},             // terra
+  {id:'stone',  c:'#14141a', w:2},             // pedra/laje
+];
+const GROUND_TOTAL=GROUND.reduce((s,t)=>s+t.w,0);
+const GROUND_MAP={};                           // id -> tipo (lookup p/ POIs)
+const groundImages={};
+GROUND.forEach(t=>{ t.img=t.img||('Img/ground_'+t.id+'.png'); const im=new Image(); im.src=t.img; groundImages[t.id]=im; GROUND_MAP[t.id]=t; });
+
+// ---------- POIs de chão (terreno FIXO desenhado à mão) ----------
+//  Sobrescreve o chão aleatório em lugares exatos. Coords em px no mundo
+//  (spawn = 0,0). 'id' tem que existir em GROUND (usa cor/imagem dele).
+//   path:[{x,y},...], w   -> caminho de largura w ligando os pontos
+//   rect:[x,y,larg,alt]   -> mancha retangular
+//   circle:[cx,cy,r]      -> mancha circular (clareira)
+const GROUND_POI=[
+  {id:'dirt', path:[
+    {x:0,y:0},        // spawn
+    {x:1400,y:0},     // leste
+    {x:1400,y:1600},  // sul
+    {x:3200,y:1600},  // leste longe
+    {x:3200,y:-1200}, // norte
+    {x:5000,y:-1200}, // leste bem longe
+  ], w:90},
+  {id:'stone', circle:[5000,-1200,160]},        // praça no fim do caminho
+];
+// distância de um ponto ao segmento AB (p/ checar largura do caminho)
+function distSeg(px,py,ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy;
+  let t=l2?((px-ax)*dx+(py-ay)*dy)/l2:0; t=t<0?0:t>1?1:t;
+  return Math.hypot(px-(ax+dx*t), py-(ay+dy*t));
+}
+// Se a posição (px,py em px do mundo) cai num POI, retorna o tipo; senão null.
+function groundPoiAt(px,py){
+  for(const poi of GROUND_POI){
+    if(poi.path){ const hw=poi.w*0.5;
+      for(let i=0;i<poi.path.length-1;i++){
+        const a=poi.path[i], b=poi.path[i+1];
+        if(distSeg(px,py,a.x,a.y,b.x,b.y)<=hw) return GROUND_MAP[poi.id]; }
+    } else if(poi.rect){ const[x,y,w,h]=poi.rect;
+      if(px>=x&&px<x+w&&py>=y&&py<y+h) return GROUND_MAP[poi.id];
+    } else if(poi.circle){ const[cx2,cy2,r]=poi.circle;
+      if(Math.hypot(px-cx2,py-cy2)<=r) return GROUND_MAP[poi.id]; }
+  }
+  return null;
+}
+// Tipo de chão numa posição de tile — POI fixo vence; senão sorteia por seed.
+function groundAt(tx,ty){
+  const poi=groundPoiAt(tx*TILE+TILE*0.5, ty*TILE+TILE*0.5);  // centro do tile
+  if(poi)return poi;
+  let s=(arena.seed ^ Math.imul(tx,374761393) ^ Math.imul(ty,668265263))>>>0;
+  s=(Math.imul(s,1664525)+1013904223)>>>0;
+  let roll=(s/4294967296)*GROUND_TOTAL;
+  for(const t of GROUND){ roll-=t.w; if(roll<=0)return t; }
+  return GROUND[0];
+}
+
+let arena={biome:BIOMES[0], rocks:[], decor:[], objs:[], chunks:{}, seed:0};
 const CHUNK=900;                               // tamanho do bloco em px
 // PRNG próprio por bloco — determinístico, NÃO consome o stream srng (não afeta spawn).
 function chunkRng(cx,cy){
@@ -729,28 +813,44 @@ function ensureChunk(cx,cy){
       c: speck ? arena.biome.spark : arena.biome.blob,
       a: speck ? 0.25+rng()*0.35 : 0.04+rng()*0.06 });
   }
-  return arena.chunks[key]={rocks, decor};
+  // objetos do mundo (árvores/baús/etc) — espalhados conforme WORLD_OBJECTS
+  const objs=[];
+  for(const t of WORLD_OBJECTS){
+    const cnt=t.n[0]+Math.floor(rng()*(t.n[1]-t.n[0]+1));
+    for(let i=0;i<cnt;i++){
+      const x=cx*CHUNK+rng()*CHUNK, y=cy*CHUNK+rng()*CHUNK;
+      if(x*x+y*y<t.minR*t.minR)continue;        // mantém spawn livre
+      objs.push({ t, x, y, r:t.r });
+    }
+  }
+  return arena.chunks[key]={rocks, decor, objs};
 }
 // Mantém arena.rocks/arena.decor = blocos num raio ao redor do player.
 function updateRocks(){
-  const cx=Math.floor(P.x/CHUNK), cy=Math.floor(P.y/CHUNK), R=2, rocks=[], decor=[];
+  const cx=Math.floor(P.x/CHUNK), cy=Math.floor(P.y/CHUNK), R=2, rocks=[], decor=[], objs=[];
   for(let dx=-R;dx<=R;dx++)for(let dy=-R;dy<=R;dy++){
     const c=ensureChunk(cx+dx,cy+dy);
     for(let i=0;i<c.rocks.length;i++)rocks.push(c.rocks[i]);
     for(let i=0;i<c.decor.length;i++)decor.push(c.decor[i]);
+    for(let i=0;i<c.objs.length;i++)objs.push(c.objs[i]);
   }
-  arena.rocks=rocks; arena.decor=decor;
+  arena.rocks=rocks; arena.decor=decor; arena.objs=objs;
 }
 function genArena(){
   arena.biome=spick(BIOMES);
   arena.seed=(runSeed ^ 0x9e3779b9)>>>0;       // deriva seed das rochas da seed da partida
-  arena.chunks={}; arena.rocks=[];
+  arena.chunks={}; arena.rocks=[]; arena.objs=[];
   document.body.style.background=arena.biome.bg;
 }
 // Empurra um corpo {x,y,r} para fora de qualquer rocha que esteja sobrepondo.
 function collideRocks(o){
   for(const k of arena.rocks){
     const dx=o.x-k.x, dy=o.y-k.y, rr=k.r+o.r, d=Math.hypot(dx,dy);
+    if(d<rr && d>0){ const push=rr-d; o.x+=dx/d*push; o.y+=dy/d*push; }
+  }
+  for(const w of arena.objs){
+    if(!w.t.solid || w.collected) continue;
+    const dx=o.x-w.x, dy=o.y-w.y, rr=w.r*0.7+o.r, d=Math.hypot(dx,dy);
     if(d<rr && d>0){ const push=rr-d; o.x+=dx/d*push; o.y+=dy/d*push; }
   }
 }
@@ -1378,6 +1478,17 @@ function update(dt){
       particles.push({x:P.x,y:P.y,vx:0,vy:-1,t:0.3,c:'#7af5ff',r:2});}}
   orbs=orbs.filter(o=>!o.dead);
 
+  // baús: encostar coleta ouro/xp e some (fica coletado no cache do bloco)
+  for(const w of arena.objs){
+    if(!w.t.chest||w.collected)continue;
+    const rr=P.r+w.r;
+    if(dist2(P,w)<rr*rr){ w.collected=true;
+      gold+=(w.t.gold||0)*(P.goldMul||1); gainXP(w.t.xp||0);
+      toast('📦 +'+(w.t.gold||0)+' ouro');
+      for(let i=0;i<10;i++)particles.push({x:w.x,y:w.y,vx:rand(-2.5,2.5),vy:rand(-2.5,2.5),t:0.5,c:'#ffd27a',r:2});
+    }
+  }
+
   for(const p of particles){p.t-=dt;if(p.ring)p.r+=(p.max-p.r)*0.3;else{p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;}}
   particles=particles.filter(p=>p.t>0);
   for(const d of dmgTexts){d.t-=dt;d.y-=30*dt;}
@@ -1456,6 +1567,15 @@ function render(){
   let sx=0,sy=0; if(shake>0.3){sx=rand(-shake,shake);sy=rand(-shake,shake);}
   cx.translate(W/2-P.x+sx, H/2-P.y+sy);
 
+  // chão: tiles visíveis (cor ou imagem) — base de tudo, determinístico por posição
+  const tx0=Math.floor((P.x-W/2)/TILE)-1, ty0=Math.floor((P.y-H/2)/TILE)-1;
+  const tx1=Math.ceil((P.x+W/2)/TILE)+1,  ty1=Math.ceil((P.y+H/2)/TILE)+1;
+  for(let ty=ty0;ty<ty1;ty++)for(let tx=tx0;tx<tx1;tx++){
+    const g=groundAt(tx,ty), im=groundImages[g.id];
+    if(im&&im.complete&&im.naturalWidth){ cx.drawImage(im,tx*TILE,ty*TILE,TILE,TILE); }
+    else { cx.fillStyle=g.c; cx.fillRect(tx*TILE,ty*TILE,TILE,TILE); }
+  }
+
   // decoração de fundo (manchas/pontos do bioma) — sob a grade, varia por região
   for(const d of arena.decor){
     cx.fillStyle=`rgba(${d.c},${d.a})`;
@@ -1466,6 +1586,17 @@ function render(){
   for(const k of arena.rocks){
     cx.fillStyle=arena.biome.rock; cx.strokeStyle='rgba(0,0,0,.5)'; cx.lineWidth=2;
     cx.beginPath();cx.arc(k.x,k.y,k.r,0,TAU);cx.fill();cx.stroke();cx.lineWidth=1;
+  }
+  // objetos do mundo (árvores/baús/etc) — ordenados por Y p/ profundidade
+  const drawObjs=arena.objs.filter(o=>!o.collected).sort((a,b)=>a.y-b.y);
+  for(const o of drawObjs){
+    const im=objImages[o.t.id];
+    if(im&&im.complete&&im.naturalWidth){
+      cx.drawImage(im,o.x-o.r,o.y-o.r*2,o.r*2,o.r*2);   // base no chão (y = pés)
+    } else {
+      cx.font=Math.round(o.r*2)+'px sans-serif';cx.textAlign='center';cx.textBaseline='alphabetic';
+      cx.fillText(o.t.icon,o.x,o.y+o.r*0.4);
+    }
   }
   for(const f of floor){const a=(1-f.t/f.life)*0.4;
     cx.fillStyle=f.poison?`rgba(80,220,90,${a})`:`rgba(255,120,40,${a})`;
