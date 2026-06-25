@@ -464,6 +464,14 @@
   <button class="btn ghost" id="selBack">◀ Voltar</button>
 </div>
 
+<!-- MAP SELECT -->
+<div class="screen hidden" id="mapselect">
+  <h2>Escolha o mapa</h2>
+  <p class="sub">Cada mapa tem cenário, objetos e inimigos próprios.</p>
+  <div class="classes" id="mapcards"></div>
+  <button class="btn ghost" id="mapBack">◀ Voltar</button>
+</div>
+
 <!-- SHOP -->
 <div class="screen hidden" id="shop">
   <h2>🛒 Loja de Melhorias</h2>
@@ -528,7 +536,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','shop','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','mapselect','shop','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -708,11 +716,18 @@ const WEAPONS={
 //    weight   number   peso relativo de spawn entre os elegíveis
 // =====================================================================
 const ENEMIES=[
+  // --- comuns (qualquer mapa) ---
   {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
   {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
   {id:'fast',  name:'Veloz',      icon:'🦂', c:'#ffd27a', r:9,  hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
   {id:'tank',  name:'Brutamonte', icon:'🐗', c:'#c08bff', r:20, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
   {id:'ghost', name:'Espectro',   icon:'👻', c:'#aaeeff', r:10, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
+  // --- exclusivos: Terras Cinzentas (fogo) ---
+  {id:'imp',   name:'Diabrete',   icon:'👺', c:'#ff5a2a', r:11, hp:18, spd:1.9, dmg:11, xp:2, gold:2, minTime:0,   weight:28},
+  {id:'magma', name:'Colosso de Magma', icon:'🌋', c:'#ff7a2a', r:24, hp:80, spd:0.6, dmg:22, xp:5, gold:5, minTime:90, weight:14},
+  // --- exclusivos: Pico Gélido (gelo) ---
+  {id:'wraith',name:'Alma Gélida',icon:'🥶', c:'#7af5ff', r:10, hp:24, spd:2.0, dmg:12, xp:2, gold:2, minTime:0,   weight:26},
+  {id:'golem', name:'Golem de Gelo', icon:'🧊', c:'#aee4ff', r:23, hp:95, spd:0.65,dmg:24, xp:6, gold:6, minTime:90, weight:14},
 ];
 
 // ---------- Chefes (configuráveis; aparecem por tempo, não por peso) ----------
@@ -836,7 +851,55 @@ function pickGround(){
   return GROUND[0];
 }
 
-let arena={biome:BIOMES[0], ground:null, rocks:[], decor:[], objs:[], chunks:{}, seed:0};
+// =====================================================================
+//  CATÁLOGO DE MAPAS  (fonte única de verdade)
+// ---------------------------------------------------------------------
+//  Cada mapa fixa o cenário e diz QUEM nasce nele. Para um mapa novo,
+//  acrescente uma entrada — nenhuma outra parte do código muda.
+//   biome    id em BIOMES (cor de fundo/grade). Omita = sorteado.
+//   ground   id em GROUND (piso do mapa inteiro). Omita = sorteado.
+//   objects  ids de WORLD_OBJECTS que podem nascer. Omita = todos.
+//   enemies  ids de ENEMIES que podem nascer. Omita = todos.
+//   bosses   ids de BOSSES que rodam neste mapa. Omita = todos.
+//   diffMul  multiplica vida/dano dos inimigos (mapas mais fortes).
+//   stars    1..3 só p/ exibir dificuldade na UI.
+//   unlockCost / isLocked  desbloqueio com ouro (igual aos personagens).
+// =====================================================================
+const MAPS=[
+  {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
+    biome:'venom', ground:'grass', stars:1, diffMul:1, unlockCost:0, isLocked:false,
+    objects:['tree','tree2','bush','stump','grass_t','flower','barrel'],
+    enemies:['grunt','swarm','fast'], bosses:['void']},
+  {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
+    biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
+    objects:['tree_dead','rock','campfire','barrel','crystal'],
+    enemies:['grunt','fast','imp','magma','ghost'], bosses:['ember']},
+  {id:'frostpeak', icon:'❄️', name:'Pico Gélido', desc:'Geleira mortal. Só os fortes sobrevivem.',
+    biome:'frost', ground:'ice', stars:3, diffMul:1.7, unlockCost:900, isLocked:true,
+    objects:['tree_dead','rock','crystal','barrel'],
+    enemies:['fast','wraith','golem','ghost','swarm'], bosses:['frost']},
+];
+const BIOME_BY_ID={}; BIOMES.forEach(b=>BIOME_BY_ID[b.id]=b);
+// ---------- Desbloqueio de mapas (persistente; mesmo padrão dos personagens)
+const MAP_UNLOCK_KEY='void_map_unlocks';
+function loadMapUnlocks(){
+  let s={}; try{ s=JSON.parse(localStorage.getItem(MAP_UNLOCK_KEY))||{}; }catch(e){ s={}; }
+  MAPS.forEach(m=>{ if(!m.isLocked) s[m.id]=true; });
+  return s;
+}
+function saveMapUnlocks(){ localStorage.setItem(MAP_UNLOCK_KEY,JSON.stringify(mapUnlocks)); }
+function isMapUnlocked(id){ return !!mapUnlocks[id]; }
+let mapUnlocks=loadMapUnlocks();
+function tryUnlockMap(m){
+  if(isMapUnlocked(m.id)) return {ok:true};
+  if(bankGold < m.unlockCost) return {ok:false, reason:'gold'};
+  bankGold-=m.unlockCost; saveBank();
+  mapUnlocks[m.id]=true; saveMapUnlocks();
+  return {ok:true};
+}
+let selectedMap=MAPS[0];
+
+let arena={biome:BIOMES[0], ground:null, map:null, rocks:[], decor:[], objs:[], chunks:{}, seed:0};
 const CHUNK=900;                               // tamanho do bloco em px
 // PRNG próprio por bloco — determinístico, NÃO consome o stream srng (não afeta spawn).
 function chunkRng(cx,cy){
@@ -864,9 +927,12 @@ function ensureChunk(cx,cy){
       c: speck ? arena.biome.spark : arena.biome.blob,
       a: speck ? 0.25+rng()*0.35 : 0.04+rng()*0.06 });
   }
-  // objetos do mundo (árvores/baús/etc) — espalhados conforme WORLD_OBJECTS
+  // objetos do mundo (árvores/baús/etc) — só os permitidos pelo mapa
   const objs=[];
-  for(const t of WORLD_OBJECTS){
+  const objList=(arena.map && arena.map.objects)
+    ? WORLD_OBJECTS.filter(t=>arena.map.objects.includes(t.id))
+    : WORLD_OBJECTS;
+  for(const t of objList){
     const cnt=t.n[0]+Math.floor(rng()*(t.n[1]-t.n[0]+1));
     for(let i=0;i<cnt;i++){
       const x=cx*CHUNK+rng()*CHUNK, y=cy*CHUNK+rng()*CHUNK;
@@ -888,8 +954,10 @@ function updateRocks(){
   arena.rocks=rocks; arena.decor=decor; arena.objs=objs;
 }
 function genArena(){
-  arena.biome=spick(BIOMES);
-  arena.ground=pickGround();                    // 1 chão para o mapa todo (seedado)
+  const m=arena.map;
+  // mapa escolhido fixa bioma+chão; sem mapa, sorteia pela seed (modo antigo)
+  arena.biome=(m && BIOME_BY_ID[m.biome]) || spick(BIOMES);
+  arena.ground=(m && GROUND_MAP[m.ground]) || pickGround();   // 1 chão para o mapa todo
   arena.seed=(runSeed ^ 0x9e3779b9)>>>0;       // deriva seed das rochas da seed da partida
   arena.chunks={}; arena.rocks=[]; arena.objs=[];
   document.body.style.background=arena.biome.bg;
@@ -915,7 +983,9 @@ const enemyImages={}; // id -> Image (pré-carregadas para desenho no jogo)
 
 // Sorteia um tipo de inimigo entre os elegíveis pelo tempo de jogo (por peso).
 function pickEnemyType(){
-  const pool=ENEMIES.filter(t=>gameTime>=(t.minTime||0));
+  const allow=arena.map && arena.map.enemies;
+  let pool=ENEMIES.filter(t=>gameTime>=(t.minTime||0) && (!allow||allow.includes(t.id)));
+  if(!pool.length) pool=ENEMIES.filter(t=>!allow||allow.includes(t.id));  // fallback cedo
   const total=pool.reduce((s,t)=>s+(t.weight||1),0);
   let roll=srng()*total;
   for(const t of pool){ roll-=(t.weight||1); if(roll<=0) return t; }
@@ -1128,7 +1198,7 @@ document.querySelectorAll('#menu [data-act]').forEach(b=>{
 });
 $('lbPlay').onclick=()=>{
   if(!selectedClass) return;
-  if(isUnlocked(selectedClass.id)){ startGame(selectedClass); return; }
+  if(isUnlocked(selectedClass.id)){ buildMapCards(); show('mapselect'); return; }
   // bloqueado: tentar desbloquear com ouro
   const r=tryUnlock(selectedClass);
   if(r.ok){ menuToast('✅ '+selectedClass.name+' desbloqueado!'); renderLobby(); }
@@ -1143,16 +1213,17 @@ $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{
   if(!selectedClass) return;
-  if(isUnlocked(selectedClass.id)){ startGame(selectedClass); return; }
+  if(isUnlocked(selectedClass.id)){ buildMapCards(); show('mapselect'); return; }
   const r=tryUnlock(selectedClass);
   if(r.ok){ menuToast('✅ '+selectedClass.name+' desbloqueado!'); buildClassCards(); renderLobby(); }
   else menuToast('Ouro insuficiente! Faltam '+(selectedClass.unlockCost-bankGold).toLocaleString('pt-BR')+' ✦');
 };
+$('mapBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('gearBtn').onclick=togglePause;
 $('resumeBtn').onclick=togglePause;
 $('quitBtn').onclick=()=>{ running=false; toMenu(); };
 $('retryBtn').onclick=()=>{ buildClassCards(); show('select'); };
-$('seedRetryBtn').onclick=()=>{ if(P&&P.cls){ pendingSeed=runSeed; startGame(P.cls); } };
+$('seedRetryBtn').onclick=()=>{ if(P&&P.cls){ pendingSeed=runSeed; startGame(P.cls, arena.map); } };
 $('menuBtn').onclick=toMenu;
 
 function toMenu(){
@@ -1220,6 +1291,33 @@ function buildClassCards(){
   const b=$('startBtn'); b.disabled=true; b.style.opacity='.5'; b.textContent='Selecione uma classe';
 }
 
+// Cartões de mapa — mesma UI dos personagens. Clicar joga (ou desbloqueia).
+function buildMapCards(){
+  const el=$('mapcards'); el.innerHTML='';
+  MAPS.forEach(m=>{
+    const locked=!isMapUnlocked(m.id);
+    const d=document.createElement('div'); d.className='card'+(locked?' locked':'')+(m===selectedMap?' sel':'');
+    const gr=GROUND_MAP[m.ground];
+    d.innerHTML=(locked?`<span class="lockbadge">🔒</span>`:``)+
+      `<div class="portrait" style="background:${gr?gr.c:'#0d0c1c'}"><span class="pemoji">${m.icon}</span></div>`+
+      `<div class="name">${m.name}</div>`+
+      `<div class="desc">${m.desc}</div>`+
+      `<div class="stats">💀 Dificuldade ${'★'.repeat(m.stars||1)+'☆'.repeat(Math.max(0,3-(m.stars||1)))}</div>`+
+      (locked?`<div class="unlockbtn">🔓 Desbloquear · ${m.unlockCost.toLocaleString('pt-BR')} ✦</div>`:``);
+    d.onclick=()=>{
+      if(!isMapUnlocked(m.id)){
+        const r=tryUnlockMap(m);
+        if(r.ok){ menuToast('✅ '+m.name+' liberado!'); buildMapCards(); renderLobby(); }
+        else menuToast('Ouro insuficiente! Faltam '+(m.unlockCost-bankGold).toLocaleString('pt-BR')+' ✦');
+        return;
+      }
+      selectedMap=m;
+      startGame(selectedClass, m);
+    };
+    el.appendChild(d);
+  });
+}
+
 function togglePause(){
   if(!running)return;
   paused=!paused;
@@ -1233,7 +1331,8 @@ function renderBuild(){
 }
 
 // ---------- Start ----------
-function startGame(cls){
+function startGame(cls, map){
+  arena.map=map||selectedMap||MAPS[0]; selectedMap=arena.map;  // mapa escolhido
   setSeed(pendingSeed!=null ? pendingSeed : randSeed()); pendingSeed=null;
   bossCount=0; bossStart=Math.floor(srng()*BOSSES.length);
   genArena();
@@ -1301,14 +1400,19 @@ function applyUpgrade(u){
 function spawnEnemy(){
   const cycle=Math.floor((wave-1)/10);                   // 0,1,2... cada volta das ondas
   const ang=srand(0,TAU), R=Math.hypot(W,H)/2+60;
-  const diff=(1+gameTime/45)*(1+cycle*0.4);              // +40% status por ciclo
+  const mapMul=(arena.map&&arena.map.diffMul)||1;
+  const diff=(1+gameTime/45)*(1+cycle*0.4)*mapMul;       // +40% por ciclo, x dif. do mapa
   enemies.push(makeEnemy(pickEnemyType(), ang, R, diff, true));
 }
 function spawnBoss(){
   const cycle=Math.floor((wave-1)/10);
-  const ang=srand(0,TAU),R=Math.hypot(W,H)/2+80,diff=(1+gameTime/30)*(1+cycle*0.4);
-  // rotação de chefe: alterna pela lista a cada invocação (ordem seedada no 1º)
-  const b=BOSSES[(bossCount + bossStart) % BOSSES.length]; bossCount++;
+  const mapMul=(arena.map&&arena.map.diffMul)||1;
+  const ang=srand(0,TAU),R=Math.hypot(W,H)/2+80,diff=(1+gameTime/30)*(1+cycle*0.4)*mapMul;
+  // rotação de chefe: alterna pelos chefes do mapa (ou todos), ordem seedada no 1º
+  const allow=arena.map && arena.map.bosses;
+  const pool=(allow && BOSSES.filter(x=>allow.includes(x.id)).length)
+    ? BOSSES.filter(x=>allow.includes(x.id)) : BOSSES;
+  const b=pool[(bossCount + bossStart) % pool.length]; bossCount++;
   enemies.push(makeEnemy(b, ang, R, diff, false, {boss:true}));
   toast(b.warn||('⚠️ '+b.name));
 }
