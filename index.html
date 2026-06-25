@@ -744,16 +744,24 @@ const BIOMES=[
 //   minR  : raio livre ao redor do spawn (não nasce dentro)
 //   chest : ao encostar, coleta ouro/xp e some
 const WORLD_OBJECTS=[
-  {id:'tree',  icon:'🌳', r:38, solid:true,  n:[1,4], minR:220},
-  {id:'rock',  icon:'🪨', r:22, solid:true,  n:[0,2], minR:200},
-  {id:'bush',  icon:'🌿', r:18, solid:false, n:[1,3], minR:140},
-  {id:'flower',icon:'🌼', r:12, solid:false, n:[0,3], minR:120},
-  {id:'chest', icon:'📦', r:18, solid:false, n:[0,1], minR:300, chest:true, gold:40, xp:25},
+  {id:'tree',     icon:'🌳', r:38, solid:true,  n:[1,3], minR:220},
+  {id:'tree2',    icon:'🌲', r:36, solid:true,  n:[0,2], minR:220},
+  {id:'tree_dead',icon:'🪾', r:34, solid:true,  n:[0,1], minR:220},
+  {id:'rock',     icon:'🪨', r:24, solid:true,  n:[0,2], minR:200},
+  {id:'bush',     icon:'🌿', r:18, solid:false, n:[1,3], minR:140},
+  {id:'stump',    icon:'🪵', r:16, solid:false, n:[0,1], minR:140},
+  {id:'grass_t',  icon:'🌾', r:14, solid:false, n:[1,4], minR:120},
+  {id:'flower',   icon:'🌼', r:12, solid:false, n:[0,3], minR:120},
+  {id:'campfire', icon:'🔥', r:18, solid:false, n:[0,1], minR:260},
+  {id:'barrel',   icon:'🛢️', r:16, solid:false, n:[0,1], minR:300, chest:true, gold:40, xp:25},
+  {id:'crystal',  icon:'💎', r:18, solid:false, n:[0,1], minR:360, chest:true, gold:90, xp:60},
 ];
 // img + pré-carregamento (mesmo padrão dos inimigos)
 WORLD_OBJECTS.forEach(t=>{ t.img=t.img||('Img/obj_'+t.id+'.png'); });
 const objImages={};
 WORLD_OBJECTS.forEach(t=>{ const im=new Image(); im.src=t.img; objImages[t.id]=im; });
+// sprite extra usada só no desenho das rochas procedurais (rocha pequena)
+['rock2'].forEach(id=>{ const im=new Image(); im.src='Img/obj_'+id+'.png'; objImages[id]=im; });
 
 // ---------- Chão (defina aqui os tipos de piso) ----------
 //  Cada tile do mundo sorteia 1 tipo (determinístico pela posição).
@@ -761,11 +769,16 @@ WORLD_OBJECTS.forEach(t=>{ const im=new Image(); im.src=t.img; objImages[t.id]=i
 //   w : peso (chance relativa). Maior = aparece mais.
 //  Arte opcional: Img/ground_<id>.png (tile repetido, senão usa a cor 'c').
 const TILE=70;                                 // tamanho do tile do chão (px)
+// O mapa inteiro usa UM tipo de chão por partida (sorteado pela seed).
+// `w` = peso do sorteio do tipo (maior = sai mais). `c` = cor de fallback.
 const GROUND=[
-  {id:'grass',  c:'#0c1410', w:70},            // grama base
-  {id:'grass2', c:'#0e1a12', w:22},            // grama variação
-  {id:'dirt',   c:'#171208', w:6},             // terra
-  {id:'stone',  c:'#14141a', w:2},             // pedra/laje
+  {id:'grass',  c:'#243018', w:30},            // grama
+  {id:'grass2', c:'#202b14', w:24},            // grama (musgo)
+  {id:'dirt',   c:'#3a2a16', w:14},            // terra
+  {id:'stone',  c:'#3a3a3e', w:12},            // paralelepípedo
+  {id:'pave',   c:'#33333a', w:10},            // laje
+  {id:'ice',    c:'#26323a', w:7},             // gelo
+  {id:'lava',   c:'#2a1410', w:3},             // lava
 ];
 const GROUND_TOTAL=GROUND.reduce((s,t)=>s+t.w,0);
 const GROUND_MAP={};                           // id -> tipo (lookup p/ POIs)
@@ -809,18 +822,21 @@ function groundPoiAt(px,py){
   }
   return null;
 }
-// Tipo de chão numa posição de tile — POI fixo vence; senão sorteia por seed.
+// Tipo de chão numa posição de tile — POI fixo vence; senão o chão único do mapa.
+// O mapa inteiro é de um só tipo (arena.ground), sorteado em genArena() pela seed.
 function groundAt(tx,ty){
   const poi=groundPoiAt(tx*TILE+TILE*0.5, ty*TILE+TILE*0.5);  // centro do tile
   if(poi)return poi;
-  let s=(arena.seed ^ Math.imul(tx,374761393) ^ Math.imul(ty,668265263))>>>0;
-  s=(Math.imul(s,1664525)+1013904223)>>>0;
-  let roll=(s/4294967296)*GROUND_TOTAL;
+  return arena.ground || GROUND[0];
+}
+// Sorteia 1 tipo de chão (peso `w`) usando o stream seedado — muda conforme a seed.
+function pickGround(){
+  let roll=srng()*GROUND_TOTAL;
   for(const t of GROUND){ roll-=t.w; if(roll<=0)return t; }
   return GROUND[0];
 }
 
-let arena={biome:BIOMES[0], rocks:[], decor:[], objs:[], chunks:{}, seed:0};
+let arena={biome:BIOMES[0], ground:null, rocks:[], decor:[], objs:[], chunks:{}, seed:0};
 const CHUNK=900;                               // tamanho do bloco em px
 // PRNG próprio por bloco — determinístico, NÃO consome o stream srng (não afeta spawn).
 function chunkRng(cx,cy){
@@ -873,6 +889,7 @@ function updateRocks(){
 }
 function genArena(){
   arena.biome=spick(BIOMES);
+  arena.ground=pickGround();                    // 1 chão para o mapa todo (seedado)
   arena.seed=(runSeed ^ 0x9e3779b9)>>>0;       // deriva seed das rochas da seed da partida
   arena.chunks={}; arena.rocks=[]; arena.objs=[];
   document.body.style.background=arena.biome.bg;
@@ -1644,17 +1661,24 @@ function render(){
     cx.beginPath();cx.arc(d.x,d.y,d.r,0,TAU);cx.fill();
   }
   drawGrid();
-  // obstáculos da arena (rochas) — desenhados sob tudo
+  // obstáculos da arena (rochas) — sprite (grande/pequena por raio); fallback círculo
   for(const k of arena.rocks){
-    cx.fillStyle=arena.biome.rock; cx.strokeStyle='rgba(0,0,0,.5)'; cx.lineWidth=2;
-    cx.beginPath();cx.arc(k.x,k.y,k.r,0,TAU);cx.fill();cx.stroke();cx.lineWidth=1;
+    const im=objImages[k.r>=30?'rock':'rock2'];
+    if(im&&im.complete&&im.naturalWidth){
+      const w=k.r*2.4, h=w*(im.naturalHeight/im.naturalWidth);
+      cx.drawImage(im, k.x-w/2, k.y-h*0.72, w, h);       // base perto de k.y
+    } else {
+      cx.fillStyle=arena.biome.rock; cx.strokeStyle='rgba(0,0,0,.5)'; cx.lineWidth=2;
+      cx.beginPath();cx.arc(k.x,k.y,k.r,0,TAU);cx.fill();cx.stroke();cx.lineWidth=1;
+    }
   }
   // objetos do mundo (árvores/baús/etc) — ordenados por Y p/ profundidade
   const drawObjs=arena.objs.filter(o=>!o.collected).sort((a,b)=>a.y-b.y);
   for(const o of drawObjs){
     const im=objImages[o.t.id];
     if(im&&im.complete&&im.naturalWidth){
-      cx.drawImage(im,o.x-o.r,o.y-o.r*2,o.r*2,o.r*2);   // base no chão (y = pés)
+      const w=o.r*2, h=w*(im.naturalHeight/im.naturalWidth);  // preserva proporção
+      cx.drawImage(im, o.x-w/2, o.y-h, w, h);                 // base (pés) em o.y
     } else {
       cx.font=Math.round(o.r*2)+'px sans-serif';cx.textAlign='center';cx.textBaseline='alphabetic';
       cx.fillText(o.t.icon,o.x,o.y+o.r*0.4);

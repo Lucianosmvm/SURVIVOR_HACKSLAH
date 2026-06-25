@@ -1,6 +1,6 @@
 // Service worker — cache offline para a PWA "Crônicas do Vazio".
 // Suba o CACHE_VERSION sempre que mudar arquivos para forçar atualização.
-const CACHE_VERSION = 'cronicas-v1';
+const CACHE_VERSION = 'cronicas-v2';
 
 // Arquivos pré-cacheados (caminhos relativos ao local do sw.js).
 // IMPORTANTE: ao separar dados em data/*.js depois, adicione-os aqui,
