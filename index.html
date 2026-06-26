@@ -72,6 +72,25 @@
   .petup { margin-top:8px; display:inline-block; background:#15233a; border:1px solid #7af5ff55;
     color:#7af5ff; font-size:12px; font-weight:bold; padding:6px 14px; border-radius:10px; cursor:pointer; touch-action:manipulation; }
   .petup:active { transform:scale(.95); }
+
+  /* ---- Inventário / equipamento ---- */
+  .inv-slots { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; width:100%; max-width:520px; }
+  .inv-slot { aspect-ratio:1; border-radius:12px; background:#120f2a; border:1px solid #2a2750;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; cursor:pointer; padding:2px; touch-action:manipulation; }
+  .inv-slot:active { transform:scale(.95); }
+  .inv-slot.filled { border-width:2px; }
+  .inv-slot .si { font-size:21px; line-height:1; }
+  .inv-slot .sl { font-size:8px; color:#6a6f92; text-align:center; line-height:1; }
+  .inv-list { display:flex; flex-direction:column; gap:7px; width:100%; max-width:520px; }
+  .inv-item { display:flex; align-items:center; gap:9px; background:linear-gradient(160deg,#171436,#0d0c1c);
+    border:1px solid #2a2750; border-radius:12px; padding:9px 11px; cursor:pointer; text-align:left; touch-action:manipulation; }
+  .inv-item:active { transform:scale(.98); }
+  .inv-item .ii { font-size:22px; flex-shrink:0; }
+  .inv-item .it { flex:1; min-width:0; }
+  .inv-item .iname { font-weight:bold; font-size:13px; }
+  .inv-item .istats { font-size:11px; color:#9aa0c0; line-height:1.3; }
+  .inv-item .ibtn { font-size:11px; font-weight:bold; padding:6px 12px; border-radius:9px; flex-shrink:0;
+    background:#15233a; color:#7af5ff; border:1px solid #7af5ff55; }
   /* retrato do lobby bloqueado */
   .lb-portrait.locked img, .lb-portrait.locked .lb-pemoji { filter:grayscale(.85) brightness(.55); }
   .lb-portrait.locked::after { content:'🔒'; position:absolute; inset:0; display:flex;
@@ -448,6 +467,17 @@
         <span style="color:#7af5ff;font-weight:bold">Trocar ›</span>
       </button>
 
+      <button class="lb-panel" data-act="inv" id="lbInvBtn"
+        style="display:flex;align-items:center;gap:10px;width:100%;border:none;text-align:left;cursor:pointer;color:inherit;font:inherit;position:relative">
+        <span style="font-size:28px">🎒</span>
+        <span style="flex:1">
+          <span class="lb-ptitle" style="display:block">EQUIPAMENTO</span>
+          <span id="lbInvInfo" style="color:#cdd2f0;font-weight:bold">0 itens</span>
+        </span>
+        <span style="color:#7af5ff;font-weight:bold">Abrir ›</span>
+        <i class="lb-dot" id="lbInvDot" style="display:none;position:absolute;top:8px;right:8px"></i>
+      </button>
+
       <div class="lb-panel">
         <div class="lb-ptitle">PROGRESSO</div>
         <div class="lb-season">
@@ -512,6 +542,16 @@
   <p class="sub">Desbloqueie, selecione <b>1</b> e aprimore com ouro.<br>🔮 Runa (drop de chefe) é exigida nos níveis altos.<br>Ouro: <b id="petGold" style="color:#ffd27a">0</b> ✦ · Runas: <b id="petRunes" style="color:#c08bff">0</b> 🔮</p>
   <div class="classes" id="petcards"></div>
   <button class="btn ghost" id="petBack">◀ Voltar</button>
+</div>
+
+<!-- INVENTÁRIO / EQUIPAMENTO -->
+<div class="screen hidden" id="inv">
+  <h2>🎒 Equipamento</h2>
+  <p class="sub">Toque num item p/ equipar · num slot cheio p/ remover.<br>Itens caem de monstros (chefes garantem).</p>
+  <div class="inv-slots" id="invSlots"></div>
+  <div class="lb-ptitle" style="margin-top:8px">MOCHILA · <span id="invCount">0</span>/60</div>
+  <div class="inv-list" id="invList"></div>
+  <button class="btn ghost" id="invBack">◀ Voltar</button>
 </div>
 
 <!-- SHOP -->
@@ -603,7 +643,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','mapselect','shop','missions','achv','talents','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','mapselect','pets','inv','shop','missions','achv','talents','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -1138,8 +1178,118 @@ function addPet(id){
   toast(def.icon+' '+def.name+' (Nv '+petLevel(id)+') acompanha você!');
 }
 
+// ---------- Equipamentos & inventário ----------
+//  Monstros dropam itens (pickup no chão). Cada item: tipo + raridade + 1-4
+//  atributos. Inventário e itens equipados são persistentes. Os bônus dos itens
+//  equipados são aplicados ao P no startGame (após talentos).
+const ITEM_RARITIES={
+  common:   {label:'Comum',   color:'#9aa0c0', affixes:1, mult:1},
+  uncommon: {label:'Incomum', color:'#7aff9a', affixes:2, mult:1.4},
+  rare:     {label:'Raro',    color:'#7af5ff', affixes:2, mult:1.9},
+  epic:     {label:'Épico',   color:'#c08bff', affixes:3, mult:2.6},
+  legendary:{label:'Lendário',color:'#ffd27a', affixes:3, mult:3.5},
+  mythic:   {label:'Mítico',  color:'#ff5a7a', affixes:4, mult:5},
+};
+const RARITY_ORDER=['common','uncommon','rare','epic','legendary','mythic'];
+// 10 slots do GDD. ring1/ring2 aceitam o tipo 'ring'; os demais casam pelo id.
+const EQUIP_SLOTS=[
+  {id:'helmet', icon:'⛑️',name:'Capacete'},
+  {id:'chest',  icon:'🛡️',name:'Peitoral'},
+  {id:'gloves', icon:'🧤',name:'Luvas'},
+  {id:'boots',  icon:'🥾',name:'Botas'},
+  {id:'ring1',  icon:'💍',name:'Anel I'},
+  {id:'ring2',  icon:'💍',name:'Anel II'},
+  {id:'amulet', icon:'📿',name:'Amuleto'},
+  {id:'weapon', icon:'⚔️',name:'Arma Principal'},
+  {id:'offhand',icon:'🗡️',name:'Arma Secundária'},
+  {id:'relic',  icon:'🔱',name:'Relíquia'},
+];
+const ITEM_KINDS=[
+  {id:'helmet', icon:'⛑️',name:'Elmo'},
+  {id:'chest',  icon:'🛡️',name:'Armadura'},
+  {id:'gloves', icon:'🧤',name:'Manoplas'},
+  {id:'boots',  icon:'🥾',name:'Botas'},
+  {id:'ring',   icon:'💍',name:'Anel'},
+  {id:'amulet', icon:'📿',name:'Amuleto'},
+  {id:'weapon', icon:'⚔️',name:'Arma'},
+  {id:'offhand',icon:'🗡️',name:'Escudo'},
+  {id:'relic',  icon:'🔱',name:'Relíquia'},
+];
+function kindById(id){ return ITEM_KINDS.find(k=>k.id===id)||ITEM_KINDS[0]; }
+const ITEM_STATS=[
+  {k:'hp',    name:'Vida',       base:[8,20], apply:(P,v)=>{P.maxhp+=v;P.hp+=v;},       fmt:v=>'+'+v+' vida'},
+  {k:'dmg',   name:'Dano',       base:[3,8],  apply:(P,v)=>P.might+=v/100,               fmt:v=>'+'+v+'% dano'},
+  {k:'armor', name:'Armadura',   base:[1,3],  apply:(P,v)=>P.armor+=v,                   fmt:v=>'+'+v+' armadura'},
+  {k:'crit',  name:'Crítico',    base:[2,5],  apply:(P,v)=>P.crit+=v/100,                fmt:v=>'+'+v+'% crítico'},
+  {k:'haste', name:'Vel. Ataque',base:[3,7],  apply:(P,v)=>P.haste+=v/100,               fmt:v=>'+'+v+'% vel. ataque'},
+  {k:'speed', name:'Velocidade', base:[2,5],  apply:(P,v)=>{P.baseSpeed*=1+v/100;},      fmt:v=>'+'+v+'% velocidade'},
+  {k:'regen', name:'Regeneração',base:[1,3],  apply:(P,v)=>P.regen+=v*0.1,               fmt:v=>'+'+(v*0.1).toFixed(1)+' vida/s'},
+  {k:'magnet',name:'Coleta',     base:[5,12], apply:(P,v)=>{P.magnet*=1+v/100;},         fmt:v=>'+'+v+'% coleta'},
+  {k:'gold',  name:'Ouro',       base:[4,10], apply:(P,v)=>P.goldMul=(P.goldMul||1)+v/100,fmt:v=>'+'+v+'% ouro'},
+  {k:'xp',    name:'XP',         base:[4,10], apply:(P,v)=>P.xpMul=(P.xpMul||1)+v/100,   fmt:v=>'+'+v+'% XP'},
+  {k:'area',  name:'Área',       base:[3,7],  apply:(P,v)=>P.area+=v/100,                fmt:v=>'+'+v+'% área'},
+];
+function statByK(k){ return ITEM_STATS.find(s=>s.k===k); }
+const INV_MAX=60;
+function loadInv(){ try{return JSON.parse(localStorage.getItem('void_inv'))||[];}catch(e){return [];} }
+function saveInv(){ localStorage.setItem('void_inv',JSON.stringify(inventory)); }
+function loadEquip(){ try{return JSON.parse(localStorage.getItem('void_equip'))||{};}catch(e){return {};} }
+function saveEquip(){ localStorage.setItem('void_equip',JSON.stringify(equipped)); }
+let inventory=loadInv(), equipped=loadEquip();
+let itemSeq=parseInt(localStorage.getItem('void_item_seq')||'0',10);
+function rollRarity(bossBias){
+  const mult=1+(bossBias||0)+gameTime/180;        // chefes/tempo melhoram raridade
+  const w=[['common',60],['uncommon',24],['rare',10],['epic',4.5],['legendary',1.3],['mythic',0.2]];
+  let tot=0; const ws=w.map(([k,base],i)=>{ const v=base*(i>=2?mult:1); tot+=v; return [k,v]; });
+  let roll=Math.random()*tot;
+  for(const [k,v] of ws){ roll-=v; if(roll<=0)return k; }
+  return 'common';
+}
+function genItem(bossBias){
+  const kind=ITEM_KINDS[Math.floor(rand(0,ITEM_KINDS.length))];
+  const rarity=rollRarity(bossBias), R=ITEM_RARITIES[rarity];
+  const pool=ITEM_STATS.slice(), stats=[];
+  for(let i=0;i<R.affixes && pool.length;i++){
+    const s=pool.splice(Math.floor(rand(0,pool.length)),1)[0];
+    const v=Math.max(1,Math.round((s.base[0]+Math.floor(rand(0,s.base[1]-s.base[0]+1)))*R.mult));
+    stats.push({k:s.k,v});
+  }
+  return {iid:++itemSeq, kind:kind.id, rarity, stats};
+}
+function itemName(it){ return ITEM_RARITIES[it.rarity].label+' '+kindById(it.kind).name; }
+function itemPower(it){ return RARITY_ORDER.indexOf(it.rarity)*100 + it.stats.reduce((s,a)=>s+a.v,0); }
+function findItem(iid){ return inventory.find(it=>it.iid===iid); }
+function slotAccepts(slotId,kind){ return (slotId==='ring1'||slotId==='ring2') ? kind==='ring' : slotId===kind; }
+function slotForKind(kind){
+  if(kind==='ring') return !equipped.ring1?'ring1':(!equipped.ring2?'ring2':'ring1');
+  return kind;
+}
+function isEquipped(iid){ return Object.values(equipped).includes(iid); }
+function equipItem(iid){
+  const it=findItem(iid); if(!it)return;
+  const slot=slotForKind(it.kind);
+  equipped[slot]=iid; saveEquip();
+}
+function unequipSlot(slot){ delete equipped[slot]; saveEquip(); }
+function addLootItem(it){
+  inventory.push(it);
+  if(inventory.length>INV_MAX){                    // cheio: descarta o pior não-equipado
+    const cand=inventory.filter(x=>!isEquipped(x.iid)).sort((a,b)=>itemPower(a)-itemPower(b))[0];
+    if(cand)inventory=inventory.filter(x=>x.iid!==cand.iid);
+  }
+  saveInv(); localStorage.setItem('void_item_seq',String(itemSeq));
+}
+function applyEquipment(P){
+  for(const slot of EQUIP_SLOTS){
+    const iid=equipped[slot.id]; if(!iid)continue;
+    const it=findItem(iid); if(!it)continue;
+    for(const a of it.stats){ const s=statByK(a.k); if(s)s.apply(P,a.v); }
+  }
+}
+function dropLoot(x,y,bossBias){ loot.push({x,y,r:10,pull:false,item:genItem(bossBias)}); }
+
 // ---------- State ----------
-let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[];
+let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[],loot=[];
 let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0,bossCount=0,bossStart=0;
 let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null;
 let runGained={runes:0};   // recompensas da run atual (mostradas no game over)
@@ -1561,6 +1711,9 @@ function renderLobby(){
   const sp=(selectedPet&&isPetUnlocked(selectedPet))?petById(selectedPet):null;   // painel companheiro
   $('lbPetIcon').textContent=sp?sp.icon:'🐾';
   $('lbPetName').textContent=sp?sp.name:'Nenhum';
+  const eqN=EQUIP_SLOTS.filter(s=>equipped[s.id]&&findItem(equipped[s.id])).length;   // painel equipamento
+  $('lbInvInfo').textContent=inventory.length+' itens · '+eqN+'/10 equipados';
+  updateInvDot();
   checkAchievements();   // reconcilia conquistas (ex.: todas as classes) e atualiza o badge
   updateMissionDot();    // badge de missão pronta p/ resgatar
   updateTalDot();        // badge de talento disponível p/ comprar
@@ -1578,6 +1731,7 @@ function lobbyAct(a){
   else if(a==='achv'){ buildAchievements(); show('achv'); }
   else if(a==='talents'){ buildTalents(); show('talents'); }
   else if(a==='pets'){ buildPetCards(); show('pets'); }
+  else if(a==='inv'){ buildInventory(); show('inv'); }
   else if(a==='how'){ show('how'); }
 }
 document.querySelectorAll('#menu [data-act]').forEach(b=>{
@@ -1605,6 +1759,7 @@ $('missBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('talBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('talReset').onclick=resetTalents;
 $('petBack').onclick=()=>{ renderLobby(); show('menu'); };
+$('invBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{
@@ -1760,6 +1915,53 @@ function upgradePet(p){
   menuToast('⬆ '+p.name+' agora Nv '+(lvl+1)+'!'); buildPetCards(); renderLobby();
 }
 
+// Inventário: grade dos 10 slots equipados + lista da mochila.
+function buildInventory(){
+  const sl=$('invSlots'); sl.innerHTML='';
+  for(const slot of EQUIP_SLOTS){
+    const iid=equipped[slot.id], it=iid?findItem(iid):null;
+    const d=document.createElement('div'); d.className='inv-slot'+(it?' filled':'');
+    if(it){ const R=ITEM_RARITIES[it.rarity]; d.style.borderColor=R.color;
+      d.innerHTML=`<div class="si">${kindById(it.kind).icon}</div><div class="sl" style="color:${R.color}">${slot.name}</div>`;
+      d.onclick=()=>{ unequipSlot(slot.id); buildInventory(); renderLobby(); };
+    } else {
+      d.innerHTML=`<div class="si" style="opacity:.35">${slot.icon}</div><div class="sl">${slot.name}</div>`;
+    }
+    sl.appendChild(d);
+  }
+  $('invCount').textContent=inventory.length;
+  const el=$('invList'); el.innerHTML='';
+  if(!inventory.length){ el.innerHTML='<div class="sub" style="opacity:.6">Mochila vazia — mate monstros e chefes pra dropar itens.</div>'; updateInvDot(); return; }
+  // equipados primeiro, depois por poder
+  const list=inventory.slice().sort((a,b)=>(isEquipped(b.iid)-isEquipped(a.iid))||(itemPower(b)-itemPower(a)));
+  for(const it of list){
+    const R=ITEM_RARITIES[it.rarity], eq=isEquipped(it.iid);
+    const d=document.createElement('div'); d.className='inv-item'; d.style.borderColor=R.color;
+    const statsTxt=it.stats.map(a=>statByK(a.k).fmt(a.v)).join(' · ');
+    d.innerHTML=`<div class="ii">${kindById(it.kind).icon}</div>`+
+      `<div class="it"><div class="iname" style="color:${R.color}">${itemName(it)}</div>`+
+      `<div class="istats">${statsTxt}</div></div>`+
+      `<div class="ibtn" style="${eq?'color:#9aff7a;border-color:#9aff7a55':''}">${eq?'✅ Equipado':'Equipar'}</div>`;
+    d.onclick=()=>{
+      if(isEquipped(it.iid)){ for(const s in equipped) if(equipped[s]===it.iid)unequipSlot(s); }
+      else equipItem(it.iid);
+      buildInventory(); renderLobby();
+    };
+    el.appendChild(d);
+  }
+  updateInvDot();
+}
+function invHasUpgrade(){
+  for(const it of inventory){ if(isEquipped(it.iid))continue;
+    if(it.kind==='ring'){ const r1=equipped.ring1&&findItem(equipped.ring1), r2=equipped.ring2&&findItem(equipped.ring2);
+      if(!r1||!r2)return true; if(itemPower(it)>Math.min(itemPower(r1),itemPower(r2)))return true; continue; }
+    const cur=equipped[it.kind]?findItem(equipped[it.kind]):null;
+    if(!cur||itemPower(it)>itemPower(cur))return true;
+  }
+  return false;
+}
+function updateInvDot(){ const el=$('lbInvDot'); if(el)el.style.display=invHasUpgrade()?'block':'none'; }
+
 function togglePause(){
   if(!running)return;
   paused=!paused;
@@ -1787,9 +1989,10 @@ function startGame(cls, map){
   P.goldMul=1; P.xpMul=1;
   META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; if(l>0)u.apply(P,l); });
   TALENTS.forEach(n=>{ const l=TAL[n.id]||0; if(l>0)n.apply(P,l); });   // árvore de talentos
+  applyEquipment(P);                                                    // bônus dos itens equipados
   P.weapons[cls.start]={level:1,cd:0};
   if(selectedPet && isPetUnlocked(selectedPet)) addPet(selectedPet);   // pet selecionado entra na run
-  enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];
+  enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];loot=[];
   combo=0;comboTimer=0;
   gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;acc=0;
   activeEvent=null;eventTimer=srand(22,32);eventObjs=[];resetEnv();runGained={runes:0};
@@ -1885,6 +2088,9 @@ function killEnemy(e){
   orbs.push({x:e.x,y:e.y,xp:e.xp,gold:e.gold,r:5,pull:false});
   if(e.boss){for(let i=0;i<8;i++)orbs.push({x:e.x+rand(-30,30),y:e.y+rand(-30,30),xp:5,gold:5,r:6,pull:false});P.maxhp+=20;P.hp=P.maxhp;
     runeBank+=1; saveRunes(); runGained.runes++; toast('🔮 +1 Runa!');}
+  // drop de equipamento: chefe garante (bias alto), elite ~18%, comum ~4%
+  const dropChance=e.boss?1:(e.elite?0.18:0.04);
+  if(Math.random()<dropChance) dropLoot(e.x,e.y, e.boss?2.5:(e.elite?1:0));
   shake=Math.min(shake+(e.boss?14:1.5),18);
 }
 function nearestEnemies(n){
@@ -2167,6 +2373,16 @@ function update(dt){
       particles.push({x:P.x,y:P.y,vx:0,vy:-1,t:0.3,c:'#7af5ff',r:2});}}
   orbs=orbs.filter(o=>!o.dead);
 
+  // loot: pickup de equipamento — atrai como orbe, coleta adiciona ao inventário
+  for(const o of loot){ const d=dist2(P,o);
+    if(d<P.magnet*P.magnet)o.pull=true;
+    if(o.pull){const a=Math.atan2(P.y-o.y,P.x-o.x);o.x+=Math.cos(a)*7;o.y+=Math.sin(a)*7;}
+    if(d<(P.r+10)*(P.r+10)){ o.dead=true; addLootItem(o.item);
+      const R=ITEM_RARITIES[o.item.rarity];
+      toast(R.label+' '+kindById(o.item.kind).name+'!');
+      for(let i=0;i<10;i++)particles.push({x:o.x,y:o.y,vx:rand(-3,3),vy:rand(-3,3),t:0.6,c:R.color,r:rand(1,3)}); } }
+  loot=loot.filter(o=>!o.dead);
+
   // baús: encostar coleta ouro/xp e some (fica coletado no cache do bloco)
   for(const w of arena.objs){
     if(!w.t.chest||w.collected)continue;
@@ -2316,6 +2532,14 @@ function render(){
   cx.shadowBlur=8;cx.shadowColor='#7af5ff';cx.fillStyle='#7af5ff';
   for(const o of orbs){cx.beginPath();cx.arc(o.x,o.y,o.r,0,TAU);cx.fill();}
   cx.shadowBlur=0;
+  // loot: losango com a cor da raridade + ícone do tipo
+  for(const o of loot){ const R=ITEM_RARITIES[o.item.rarity], yb=Math.sin(gameTime*4+o.x)*3;
+    cx.save(); cx.translate(o.x,o.y+yb);
+    cx.shadowColor=R.color; cx.shadowBlur=14; cx.fillStyle=R.color;
+    cx.rotate(Math.PI/4); cx.fillRect(-o.r*0.7,-o.r*0.7,o.r*1.4,o.r*1.4); cx.rotate(-Math.PI/4);
+    cx.shadowBlur=0; cx.font='13px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+    cx.fillStyle='#0a0a14'; cx.fillText(kindById(o.item.kind).icon,0,1);
+    cx.restore(); }
 
   for(const e of enemies){
     cx.save();
