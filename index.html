@@ -277,10 +277,26 @@
     font-weight:900; font-size:11px; display:flex; align-items:center; justify-content:center; }
   .lb-prof-info{ flex:1; min-width:0; }
   .lb-pname{ font-size:13px; font-weight:bold; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .lb-pname span{ color:#ffd27a; font-weight:bold; font-size:11px; margin-left:4px; }
+  .lb-pname #lbTag{ color:#ffd27a; font-weight:bold; font-size:11px; margin-left:4px; }
   .lb-power{ font-size:10px; color:#9aa0c0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lb-pxp{ height:6px; margin-top:3px; border-radius:5px; background:#15132a; border:1px solid #2a2750; overflow:hidden; }
   .lb-pxp>div{ height:100%; width:0; background:linear-gradient(90deg,#ffd27a,#ff9a3c); transition:width .3s; }
+  .lb-prof{ cursor:pointer; }
+  .lb-prof:active{ filter:brightness(1.15); }
+
+  /* ----- Editor de perfil ----- */
+  .prof-box{ width:100%; max-width:380px; background:linear-gradient(160deg,rgba(24,20,52,.96),rgba(10,9,22,.97));
+    border:1px solid #4a3f7a; border-radius:18px; padding:18px 16px; box-shadow:0 16px 40px rgba(0,0,0,.6); }
+  .prof-name{ width:100%; margin-top:4px; padding:10px 12px; border-radius:10px; font-size:15px;
+    background:#15132a; border:1px solid #2a2750; color:#fff; outline:none; -webkit-user-select:text; user-select:text; }
+  .prof-name:focus{ border-color:#ffd27a; }
+  .prof-lbl{ font-size:11px; color:#9aa0c0; text-align:left; margin:12px 2px 4px; }
+  .prof-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .prof-av{ position:relative; aspect-ratio:1; border-radius:12px; border:2px solid #2a2750; overflow:hidden;
+    background:linear-gradient(160deg,#2a2152,#0d0c1c); display:flex; align-items:center; justify-content:center;
+    font-size:26px; cursor:pointer; }
+  .prof-av img{ width:100%; height:100%; object-fit:cover; }
+  .prof-av.sel{ border-color:#ffd27a; box-shadow:0 0 12px rgba(255,210,122,.45); }
   .lb-res{ display:flex; gap:6px; align-items:center; flex-shrink:0; }
   .lb-cur{ display:flex; align-items:center; gap:5px;
     background:linear-gradient(160deg,rgba(20,18,46,.9),rgba(10,9,22,.9));
@@ -437,10 +453,10 @@
 <div class="screen lobby" id="menu">
   <!-- top bar -->
   <div class="lb-top">
-    <div class="lb-prof">
+    <div class="lb-prof" id="lbProf">
       <div class="lb-ava" id="lbAva"><span>🛡️</span><span class="lb-plvl" id="lbPlvl">1</span></div>
       <div class="lb-prof-info">
-        <div class="lb-pname">Herói <span id="lbTag">#0001</span></div>
+        <div class="lb-pname"><span id="lbPname">Herói</span> <span id="lbTag">#0001</span></div>
         <div class="lb-power">Crônicas do Vazio</div>
         <div class="lb-pxp"><div id="lbPxp"></div></div>
       </div>
@@ -645,6 +661,19 @@
   <button class="btn ghost" id="menuBtn">Menu principal</button>
 </div>
 
+<!-- PROFILE EDITOR -->
+<div class="screen hidden" id="profile">
+  <div class="prof-box">
+    <h2 style="color:#ffd27a;margin-bottom:6px">Editar Perfil</h2>
+    <div class="prof-lbl">NOME</div>
+    <input class="prof-name" id="profName" maxlength="16" placeholder="Seu nome">
+    <div class="prof-lbl">IMAGEM</div>
+    <div class="prof-grid" id="profGrid"></div>
+  </div>
+  <button class="btn" id="profSave">Salvar</button>
+  <button class="btn ghost" id="profCancel">Cancelar</button>
+</div>
+
 <script>
 "use strict";
 const cv=document.getElementById('game'), cx=cv.getContext('2d');
@@ -676,7 +705,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','mapselect','pets','inv','forge','shop','missions','achv','talents','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','mapselect','pets','inv','forge','shop','missions','achv','talents','levelup','pause','gameover','profile'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -1871,10 +1900,14 @@ function renderLobby(){
   $('lbTag').textContent='#'+String(1001+bought);
   $('lbShopDot').style.display=afford?'block':'none';
   $('lbSeasonBar').style.width=Math.min(100,rec/600*100)+'%'; // 10min = full bar
-  // avatar mirrors hero portrait
-  const cd=charImage(CLASSES[lobbyIdx]);
-  $('lbAva').innerHTML = (cd?`<img src="${cd}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${CLASSES[lobbyIdx].icon}'}))">`:`<span>${CLASSES[lobbyIdx].icon}</span>`)
-    +`<span class="lb-plvl" id="lbPlvl">${bought+1}</span>`;
+  // nome + avatar de perfil (custom se definido, senão espelha o herói)
+  $('lbPname').textContent = PROFILE.name || 'Herói';
+  const av = avatarById(PROFILE.avatar);
+  let avInner;
+  if(av){ avInner = av.img ? `<img src="${av.img}" alt="">` : `<span>${av.icon}</span>`; }
+  else { const cd=charImage(CLASSES[lobbyIdx]);
+    avInner = cd?`<img src="${cd}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${CLASSES[lobbyIdx].icon}'}))">`:`<span>${CLASSES[lobbyIdx].icon}</span>`; }
+  $('lbAva').innerHTML = avInner + `<span class="lb-plvl" id="lbPlvl">${bought+1}</span>`;
   document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n.dataset.act==='home'));
   const sp=(selectedPet&&isPetUnlocked(selectedPet))?petById(selectedPet):null;   // painel companheiro
   $('lbPetIcon').textContent=sp?sp.icon:'🐾';
@@ -1919,6 +1952,56 @@ $('lbPlay').onclick=()=>{
 };
 $('lbPrev').onclick=()=>{ lobbyIdx=(lobbyIdx-1+CLASSES.length)%CLASSES.length; renderLobby(); };
 $('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); };
+
+// ---------- Perfil (nome + foto) ----------
+// Lista de avatares. Para usar imagem própria, troque { icon:'…' } por
+// { img:'Img/seu_arquivo.png' } no item correspondente. Mantenha o 'id'.
+const AVATARS=[
+  { id:'a1',  icon:'🛡️' },
+  { id:'a2',  icon:'⚔️' },
+  { id:'a3',  icon:'🏹' },
+  { id:'a4',  icon:'🔥' },
+  { id:'a5',  icon:'❄️' },
+  { id:'a6',  icon:'⚡' },
+  { id:'a7',  icon:'🐺' },
+  { id:'a8',  icon:'🐉' },
+  { id:'a9',  icon:'💀' },
+  { id:'a10', icon:'👑' },
+  { id:'a11', icon:'🧙' },
+  { id:'a12', icon:'🦸' },
+  { id:'a13', icon:'😈' },
+  { id:'a14', icon:'🌟' },
+  { id:'a15', icon:'🎯' },
+];
+function avatarById(id){ return AVATARS.find(a=>a.id===id)||null; }
+let PROFILE = (function(){ try{ return JSON.parse(localStorage.getItem('void_profile'))||{}; }catch(e){ return {}; } })();
+function saveProfile(){ localStorage.setItem('void_profile', JSON.stringify(PROFILE)); }
+
+let profPick=null;   // avatar selecionado no editor (antes de salvar)
+function buildProfileGrid(){
+  $('profGrid').innerHTML = AVATARS.map(a=>{
+    const inner = a.img ? `<img src="${a.img}" alt="">` : a.icon;
+    return `<div class="prof-av${a.id===profPick?' sel':''}" data-av="${a.id}">${inner}</div>`;
+  }).join('');
+  $('profGrid').querySelectorAll('.prof-av').forEach(el=>{
+    el.onclick=()=>{ profPick=el.dataset.av; buildProfileGrid(); };
+  });
+}
+function openProfile(){
+  profPick = PROFILE.avatar || null;
+  $('profName').value = PROFILE.name || '';
+  buildProfileGrid();
+  show('profile');
+}
+$('lbProf').onclick = openProfile;
+$('profSave').onclick = ()=>{
+  PROFILE.name = ($('profName').value||'').trim().slice(0,16);
+  PROFILE.avatar = profPick;
+  saveProfile();
+  show('menu'); renderLobby();
+};
+$('profCancel').onclick = ()=>{ show('menu'); };
+
 renderLobby();
 
 $('shopBack').onclick=()=>{ renderLobby(); show('menu'); };
