@@ -91,6 +91,12 @@
   .inv-item .istats { font-size:11px; color:#9aa0c0; line-height:1.3; }
   .inv-item .ibtn { font-size:11px; font-weight:bold; padding:6px 12px; border-radius:9px; flex-shrink:0;
     background:#15233a; color:#7af5ff; border:1px solid #7af5ff55; }
+  .fg-acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .fgbtn { font-size:10px; font-weight:bold; padding:5px 9px; border-radius:8px; cursor:pointer; touch-action:manipulation;
+    background:#15233a; color:#7af5ff; border:1px solid #7af5ff55; }
+  .fgbtn:active { transform:scale(.95); }
+  .fgbtn.elev { color:#c08bff; border-color:#c08bff55; }
+  .fgbtn.salv { color:#ffb86a; border-color:#ffb86a55; }
   /* retrato do lobby bloqueado */
   .lb-portrait.locked img, .lb-portrait.locked .lb-pemoji { filter:grayscale(.85) brightness(.55); }
   .lb-portrait.locked::after { content:'🔒'; position:absolute; inset:0; display:flex;
@@ -431,6 +437,7 @@
     <div class="lb-res">
       <div class="lb-cur"><span class="ic">✦</span><span id="lbGold">0</span></div>
       <div class="lb-cur"><span class="ic">🔮</span><span id="lbRunes">0</span></div>
+      <div class="lb-cur"><span class="ic">🔩</span><span id="lbFrags">0</span></div>
       <div class="lb-cur"><span class="ic">🏆</span><span id="lbRec">--:--</span></div>
       <button class="lb-menu" data-act="how">☰</button>
     </div>
@@ -551,7 +558,16 @@
   <div class="inv-slots" id="invSlots"></div>
   <div class="lb-ptitle" style="margin-top:8px">MOCHILA · <span id="invCount">0</span>/60</div>
   <div class="inv-list" id="invList"></div>
+  <button class="btn" id="invForge" style="margin-top:4px">🔨 Forja</button>
   <button class="btn ghost" id="invBack">◀ Voltar</button>
+</div>
+
+<!-- FORJA -->
+<div class="screen hidden" id="forge">
+  <h2>🔨 Forja</h2>
+  <p class="sub">Funda itens em 🔩 Fragmentos · Reforje atributos · Eleve a raridade.<br>Ouro: <b id="fgGold" style="color:#ffd27a">0</b> ✦ · Fragmentos: <b id="fgFrags" style="color:#ffb86a">0</b> 🔩</p>
+  <div class="inv-list" id="forgeList"></div>
+  <button class="btn ghost" id="forgeBack">◀ Voltar</button>
 </div>
 
 <!-- SHOP -->
@@ -643,7 +659,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','mapselect','pets','inv','shop','missions','achv','talents','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','mapselect','pets','inv','forge','shop','missions','achv','talents','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -678,51 +694,53 @@ const RARITIES={
   epic:     {label:'Épico',     color:'#c08bff'},
   legendary:{label:'Lendário',  color:'#ffd27a'},
 };
+//  As 6 classes do GDD. Os ids são preservados (compat. de saves/desbloqueio);
+//  só a identidade, atributos e a habilidade (ult) mudam.
 const CLASSES=[
-  {id:'mage',icon:'🔮',name:'Arcanista',desc:'Raios teleguiados.',color:'#7af5ff',start:'bolt',
+  {id:'mage',icon:'🔥',name:'Mago',desc:'Pouca vida, muito dano em área.',color:'#ff7a3a',start:'bolt',
     rarity:'common', startLevel:1, unlockCost:0, isLocked:false,
-    attrs:{hp:90, speed:3.0, attack:18, defense:4},
-    abilities:['Raio Arcano','Tempestade Arcana'],
-    ult:{id:'storm',name:'Tempestade Arcana',icon:'🌩️',cd:16,desc:'Chuva de raios na tela toda.'},
-    passive:'+25% dano de projétil', stats:'❤️90 · 🌩️ Tempestade',
-    init:P=>{ P.boltBonus=0.25; }},
-  {id:'knight',icon:'⚔️',name:'Cavaleiro',desc:'Lâminas orbitais.',color:'#ffd27a',start:'blade',
+    attrs:{hp:80, speed:3.0, attack:22, defense:3},
+    abilities:['Raio Arcano','Bola de Fogo'],
+    ult:{id:'fireball',name:'Bola de Fogo',icon:'🔥',cd:12,desc:'Lança uma bola de fogo que explode em área.'},
+    passive:'+20% dano e +15% área', stats:'❤️80 · 🔥 Bola de Fogo',
+    init:P=>{ P.might+=0.20; P.area+=0.15; P.boltBonus=0.10; }},
+  {id:'knight',icon:'🛡️',name:'Paladino',desc:'Escudos, cura e luz sagrada.',color:'#ffd27a',start:'holy',
     rarity:'rare', startLevel:1, unlockCost:300, isLocked:true,
-    attrs:{hp:160, speed:2.6, attack:12, defense:14},
-    abilities:['Lâmina Orbital','Furacão de Aço'],
-    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
-    passive:'+2 armadura inicial', stats:'❤️160 · 🌀 Furacão',
-    init:P=>{ P.armor+=2; }},
-  {id:'ranger',icon:'🏹',name:'Caçadora',desc:'Flechas perfurantes.',color:'#9aff7a',start:'arrow',
+    attrs:{hp:160, speed:2.7, attack:12, defense:16},
+    abilities:['Orbe Sagrado','Luz Divina'],
+    ult:{id:'light',name:'Luz Divina',icon:'✨',cd:15,desc:'Explode luz: fere inimigos, cura e dá escudo.'},
+    passive:'+4 armadura e +0.6 regen', stats:'❤️160 · ✨ Luz Divina',
+    init:P=>{ P.armor+=4; P.regen+=0.6; }},
+  {id:'ranger',icon:'🏹',name:'Arqueiro',desc:'Ataque rápido, veloz e crítico.',color:'#9aff7a',start:'arrow',
     rarity:'epic', startLevel:1, unlockCost:600, isLocked:true,
-    attrs:{hp:110, speed:3.4, attack:15, defense:6},
-    abilities:['Flecha Perfurante','Chuva de Flechas'],
-    ult:{id:'volley',name:'Chuva de Flechas',icon:'🎯',cd:13,desc:'Salva de 24 flechas em leque.'},
-    passive:'+50% alcance de coleta', stats:'❤️110 · 🎯 Salva',
-    init:P=>{ P.magnet=240; }},
-  {id:'warlock',icon:'☠️',name:'Necromante',desc:'Aura que drena vida.',color:'#c08bff',start:'aura',
+    attrs:{hp:100, speed:3.5, attack:15, defense:5},
+    abilities:['Flecha Perfurante','Rajada de Flechas'],
+    ult:{id:'volley',name:'Rajada de Flechas',icon:'🎯',cd:12,desc:'Dispara 24 flechas em todas as direções.'},
+    passive:'+12% crítico e +10% vel. ataque', stats:'❤️100 · 🎯 Rajada',
+    init:P=>{ P.crit+=0.12; P.haste+=0.10; }},
+  {id:'warlock',icon:'💀',name:'Necromante',desc:'Invoca esqueletos e drena vida.',color:'#c08bff',start:'aura',
     rarity:'legendary', startLevel:1, unlockCost:1000, isLocked:true,
-    attrs:{hp:120, speed:2.8, attack:13, defense:8},
-    abilities:['Aura Sombria','Ceifar Almas'],
-    ult:{id:'reap',name:'Ceifar Almas',icon:'💀',cd:15,desc:'Explode tudo perto e cura muito.'},
-    passive:'cura ao matar', stats:'❤️120 · 💀 Ceifar',
+    attrs:{hp:110, speed:2.8, attack:14, defense:7},
+    abilities:['Aura Sombria','Invocar Esqueletos'],
+    ult:{id:'summon',name:'Invocar Esqueletos',icon:'💀',cd:16,desc:'Conjura esqueletos que lutam por você.'},
+    passive:'cura ao matar (roubo de vida)', stats:'❤️110 · 💀 Esqueletos',
     init:P=>{ P.healOnKill=2; }},
-  {id:'warrior',icon:'🪓',name:'Guerreiro',desc:'Machado giratório brutal.',color:'#ff8a5a',start:'whip',img:'Img/Guerreiro.png',
-    rarity:'rare', startLevel:1, unlockCost:400, isLocked:true,
-    attrs:{hp:150, speed:2.7, attack:20, defense:12},
-    abilities:['Chicote','Furacão de Aço'],
-    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
-    passive:'+3 armadura inicial', stats:'❤️150 · 🌀 Furacão',
-    init:P=>{ P.armor+=3; }},
-  {id:'barbarian',icon:'🪓',name:'Bárbaro',desc:'Viking com machado pesado.',color:'#7bbf5a',start:'whip',img:'Img/Barbaro.png',
+  {id:'warrior',icon:'🗡️',name:'Assassino',desc:'Facas, veneno e alta esquiva.',color:'#7bbf5a',start:'poison',img:'',
+    rarity:'epic', startLevel:1, unlockCost:400, isLocked:true,
+    attrs:{hp:95, speed:3.3, attack:18, defense:5},
+    abilities:['Nuvem Tóxica','Leque de Facas'],
+    ult:{id:'knives',name:'Leque de Facas',icon:'🗡️',cd:11,desc:'Arremessa facas venenosas e fica fugaz (invencível).'},
+    passive:'25% de esquiva', stats:'❤️95 · 🗡️ Facas',
+    init:P=>{ P.dodge=0.25; }},
+  {id:'barbarian',icon:'🪓',name:'Guerreiro',desc:'Muita vida e golpes amplos.',color:'#ff8a5a',start:'whip',img:'Img/Barbaro.png',
     rarity:'rare', startLevel:1, isLocked:false,
-    attrs:{hp:170, speed:2.6, attack:24, defense:10},
-    abilities:['Chicote','Furacão de Aço'],
-    ult:{id:'whirl',name:'Furacão de Aço',icon:'🌀',cd:18,desc:'Gira cortando tudo + invencível 1.5s.'},
-    passive:'+20 vida inicial', stats:'❤️170 · 🪓 Machado',
+    attrs:{hp:180, speed:2.7, attack:18, defense:12},
+    abilities:['Chicote','Giro Cortante'],
+    ult:{id:'whirl',name:'Giro Cortante',icon:'🌀',cd:16,desc:'Gira cortando tudo ao redor + invencível.'},
+    passive:'+3 armadura e +20 vida', stats:'❤️180 · 🌀 Giro Cortante',
     // folha 5 quadros em 1 linha = ciclo de caminhada
     sprite:{ cols:5, rows:1, fps:9, anims:{ idle:{row:0,from:0,to:0}, walk:{row:0,from:0,to:4} } },
-    init:P=>{} },
+    init:P=>{ P.armor+=3; P.maxhp+=20; P.hp=P.maxhp; } },
 ];
 // compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
 // img: arquivo de arte na pasta Img. Por padrão "Img/<id>.png".
@@ -1245,16 +1263,50 @@ function rollRarity(bossBias){
   for(const [k,v] of ws){ roll-=v; if(roll<=0)return k; }
   return 'common';
 }
-function genItem(bossBias){
-  const kind=ITEM_KINDS[Math.floor(rand(0,ITEM_KINDS.length))];
-  const rarity=rollRarity(bossBias), R=ITEM_RARITIES[rarity];
-  const pool=ITEM_STATS.slice(), stats=[];
+function rollStats(rarityKey){
+  const R=ITEM_RARITIES[rarityKey], pool=ITEM_STATS.slice(), stats=[];
   for(let i=0;i<R.affixes && pool.length;i++){
     const s=pool.splice(Math.floor(rand(0,pool.length)),1)[0];
     const v=Math.max(1,Math.round((s.base[0]+Math.floor(rand(0,s.base[1]-s.base[0]+1)))*R.mult));
     stats.push({k:s.k,v});
   }
-  return {iid:++itemSeq, kind:kind.id, rarity, stats};
+  return stats;
+}
+function genItem(bossBias){
+  const kind=ITEM_KINDS[Math.floor(rand(0,ITEM_KINDS.length))];
+  const rarity=rollRarity(bossBias);
+  return {iid:++itemSeq, kind:kind.id, rarity, stats:rollStats(rarity)};
+}
+// ---------- Forja (fragmentos 🔩) ----------
+const SALVAGE_VALUE={common:1,uncommon:2,rare:4,epic:8,legendary:16,mythic:30};
+let fragBank=parseInt(localStorage.getItem('void_frags')||'0',10);
+function saveFrags(){ localStorage.setItem('void_frags',String(fragBank)); }
+function reforgeCost(it){ const i=RARITY_ORDER.indexOf(it.rarity); return {gold:100*(i+1), frags:2*(i+1)}; }
+function elevateCost(it){ const i=RARITY_ORDER.indexOf(it.rarity); return {gold:200*(i+1), frags:5*(i+1)}; }
+function persistItems(){ saveInv(); localStorage.setItem('void_item_seq',String(itemSeq)); }
+function salvageItem(iid){
+  const it=findItem(iid); if(!it)return false;
+  if(isEquipped(iid)){ menuToast('Desequipe antes de fundir'); return false; }
+  fragBank+=SALVAGE_VALUE[it.rarity]||1; saveFrags();
+  inventory=inventory.filter(x=>x.iid!==iid); persistItems();
+  return true;
+}
+function reforgeItem(it){
+  const c=reforgeCost(it);
+  if(bankGold<c.gold){ menuToast('Faltam '+(c.gold-bankGold)+' ✦'); return; }
+  if(fragBank<c.frags){ menuToast('Faltam '+(c.frags-fragBank)+' 🔩'); return; }
+  bankGold-=c.gold; fragBank-=c.frags; it.stats=rollStats(it.rarity);
+  saveBank(); saveFrags(); persistItems();
+  menuToast('⚒ Reforjado!'); buildForge(); renderLobby();
+}
+function elevateItem(it){
+  const i=RARITY_ORDER.indexOf(it.rarity); if(i>=RARITY_ORDER.length-1){ menuToast('Já é Mítico'); return; }
+  const c=elevateCost(it);
+  if(bankGold<c.gold){ menuToast('Faltam '+(c.gold-bankGold)+' ✦'); return; }
+  if(fragBank<c.frags){ menuToast('Faltam '+(c.frags-fragBank)+' 🔩'); return; }
+  bankGold-=c.gold; fragBank-=c.frags; it.rarity=RARITY_ORDER[i+1]; it.stats=rollStats(it.rarity);
+  saveBank(); saveFrags(); persistItems();
+  menuToast('⬆ Elevado a '+ITEM_RARITIES[it.rarity].label+'!'); buildForge(); renderLobby();
 }
 function itemName(it){ return ITEM_RARITIES[it.rarity].label+' '+kindById(it.kind).name; }
 function itemPower(it){ return RARITY_ORDER.indexOf(it.rarity)*100 + it.stats.reduce((s,a)=>s+a.v,0); }
@@ -1289,7 +1341,7 @@ function applyEquipment(P){
 function dropLoot(x,y,bossBias){ loot.push({x,y,r:10,pull:false,item:genItem(bossBias)}); }
 
 // ---------- State ----------
-let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[],loot=[];
+let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[],loot=[],minions=[];
 let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0,bossCount=0,bossStart=0;
 let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null;
 let runGained={runes:0};   // recompensas da run atual (mostradas no game over)
@@ -1694,6 +1746,7 @@ function renderHero(){
 function renderLobby(){
   $('lbGold').textContent=bankGold.toLocaleString('pt-BR');
   $('lbRunes').textContent=runeBank;
+  $('lbFrags').textContent=fragBank;
   const rec=loadRecord(); $('lbRec').textContent=$('lbRec2').textContent=rec?fmtTime(rec):'--:--';
   let bought=0,maxTot=0,afford=false;
   META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; bought+=l; maxTot+=u.max;
@@ -1760,6 +1813,8 @@ $('talBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('talReset').onclick=resetTalents;
 $('petBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('invBack').onclick=()=>{ renderLobby(); show('menu'); };
+$('invForge').onclick=()=>{ buildForge(); show('forge'); };
+$('forgeBack').onclick=()=>{ buildInventory(); show('inv'); };
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{
@@ -1962,6 +2017,36 @@ function invHasUpgrade(){
 }
 function updateInvDot(){ const el=$('lbInvDot'); if(el)el.style.display=invHasUpgrade()?'block':'none'; }
 
+// Forja: cada item com Reforjar / Elevar / Fundir.
+function buildForge(){
+  $('fgGold').textContent=bankGold.toLocaleString('pt-BR');
+  $('fgFrags').textContent=fragBank;
+  const el=$('forgeList'); el.innerHTML='';
+  if(!inventory.length){ el.innerHTML='<div class="sub" style="opacity:.6">Mochila vazia.</div>'; return; }
+  const list=inventory.slice().sort((a,b)=>(isEquipped(b.iid)-isEquipped(a.iid))||(itemPower(b)-itemPower(a)));
+  for(const it of list){
+    const R=ITEM_RARITIES[it.rarity], eq=isEquipped(it.iid), maxR=RARITY_ORDER.indexOf(it.rarity)>=RARITY_ORDER.length-1;
+    const rc=reforgeCost(it), ec=elevateCost(it);
+    const d=document.createElement('div'); d.className='inv-item'; d.style.borderColor=R.color; d.style.flexWrap='wrap';
+    const statsTxt=it.stats.map(a=>statByK(a.k).fmt(a.v)).join(' · ');
+    d.innerHTML=`<div class="ii">${kindById(it.kind).icon}</div>`+
+      `<div class="it"><div class="iname" style="color:${R.color}">${itemName(it)}${eq?' <span style="color:#9aff7a;font-size:10px">(equipado)</span>':''}</div>`+
+      `<div class="istats">${statsTxt}</div></div>`+
+      `<div class="fg-acts" style="width:100%">`+
+        `<span class="fgbtn" data-a="reforge">⚒ Reforjar · ${rc.gold}✦ ${rc.frags}🔩</span>`+
+        (maxR?'':`<span class="fgbtn elev" data-a="elevate">⬆ Elevar · ${ec.gold}✦ ${ec.frags}🔩</span>`)+
+        (eq?'':`<span class="fgbtn salv" data-a="salvage">♻ Fundir · +${SALVAGE_VALUE[it.rarity]}🔩</span>`)+
+      `</div>`;
+    d.querySelectorAll('.fgbtn').forEach(b=>b.onclick=()=>{
+      const a=b.dataset.a;
+      if(a==='reforge')reforgeItem(it);
+      else if(a==='elevate')elevateItem(it);
+      else if(a==='salvage'){ if(salvageItem(it.iid)){ menuToast('♻ Fundido +'+(SALVAGE_VALUE[it.rarity])+' 🔩'); buildForge(); renderLobby(); } }
+    });
+    el.appendChild(d);
+  }
+}
+
 function togglePause(){
   if(!running)return;
   paused=!paused;
@@ -1981,7 +2066,7 @@ function startGame(cls, map){
   bossCount=0; bossStart=Math.floor(srng()*BOSSES.length);
   genArena();
   P={ x:0,y:0,r:14,cls,color:cls.color, maxhp:cls.hp,hp:cls.hp,baseSpeed:cls.speed,
-    level:cls.startLevel||1,xp:0,xpNext:5, weapons:{}, pets:[], might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,invuln:0,_bossWave:false,
+    level:cls.startLevel||1,xp:0,xpNext:5, weapons:{}, pets:[], might:1,area:1,haste:1,regen:0,magnet:160,armor:0,crit:0.05,dodge:0,invuln:0,_bossWave:false,
     ultCd:0,ultMax:cls.ult.cd,dashCd:0,dashMax:1.6,dashT:0,dx:0,dy:0,facing:{x:1,y:0},animT:0,moving:false };
   // class passive (data-driven: defined per character in CLASSES[].init)
   if(typeof cls.init==='function') cls.init(P);
@@ -1992,7 +2077,7 @@ function startGame(cls, map){
   applyEquipment(P);                                                    // bônus dos itens equipados
   P.weapons[cls.start]={level:1,cd:0};
   if(selectedPet && isPetUnlocked(selectedPet)) addPet(selectedPet);   // pet selecionado entra na run
-  enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];loot=[];
+  enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];loot=[];minions=[];
   combo=0;comboTimer=0;
   gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;acc=0;
   activeEvent=null;eventTimer=srand(22,32);eventObjs=[];resetEnv();runGained={runes:0};
@@ -2127,6 +2212,24 @@ function castUlt(id){
     explodeAt(P.x,P.y,(220)*P.area,80*P.might,'#c08bff',1.0);
     P.hp=Math.min(P.maxhp,P.hp+P.maxhp*0.20);
     particles.push({ring:true,x:P.x,y:P.y,r:8,max:240*P.area,t:0.6,c:'#c08bff'});
+  } else if(id==='fireball'){                    // Mago: bola de fogo que explode
+    const tg=nearestEnemies(1)[0];
+    const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):(P.facing.x||P.facing.y?Math.atan2(P.facing.y,P.facing.x):0);
+    bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:13,dmg:0,life:1.3,pierce:0,
+      c:'#ff7a3a',type:'fireball',boomR:(130)*P.area,boomDmg:70*P.might});
+  } else if(id==='light'){                       // Paladino: explosão de luz + cura + escudo
+    explodeAt(P.x,P.y,(200)*P.area,45*P.might,'#fff4b0',0.5);
+    P.hp=Math.min(P.maxhp,P.hp+P.maxhp*0.18); P.invuln=Math.max(P.invuln,1.6);
+    particles.push({ring:true,x:P.x,y:P.y,r:8,max:210*P.area,t:0.6,c:'#fff4b0'});
+  } else if(id==='knives'){                       // Assassino: leque de facas venenosas + fugaz
+    P.invuln=Math.max(P.invuln,1.2);
+    for(let s=0;s<14;s++){ const a=s/14*TAU;
+      bullets.push({knife:true,x:P.x,y:P.y,vx:Math.cos(a)*12,vy:Math.sin(a)*12,r:5,dmg:16,life:0.9,pierce:2,c:'#7bbf5a',type:'knife',a}); }
+  } else if(id==='summon'){                       // Necromante: invoca esqueletos temporários
+    const n=4+Math.floor(P.level/6);
+    for(let i=0;i<n;i++){ const a=i/n*TAU+rand(0,0.5);
+      minions.push({x:P.x+Math.cos(a)*30,y:P.y+Math.sin(a)*30,life:10,cd:0,hp:1,bob:i}); }
+    particles.push({ring:true,x:P.x,y:P.y,r:8,max:90,t:0.5,c:'#c08bff'});
   }
 }
 
@@ -2269,6 +2372,30 @@ function drawPets(){
     cx.restore();
   }
 }
+// Esqueletos invocados (Necromante): aliados temporários que perseguem e batem.
+function updateMinions(dt){
+  if(!minions.length)return;
+  for(const m of minions){
+    m.life-=dt; m.cd-=dt; m.bob+=dt*6;
+    const tg=nearestEnemies(1)[0];
+    if(tg){ const a=Math.atan2(tg.y-m.y,tg.x-m.x);
+      m.x+=Math.cos(a)*2.6*60*dt; m.y+=Math.sin(a)*2.6*60*dt;
+      const rr=tg.r+10;
+      if(dist2(m,tg)<rr*rr && m.cd<=0){ m.cd=0.5; damageEnemy(tg,8+P.level*0.5,tg.x-m.x,tg.y-m.y); }
+    }
+  }
+  minions=minions.filter(m=>m.life>0);
+}
+function drawMinions(){
+  for(const m of minions){ const y=m.y+Math.sin(m.bob)*2, fade=clamp(m.life,0,1);
+    cx.save(); cx.globalAlpha=fade;
+    cx.shadowColor='#c08bff'; cx.shadowBlur=8; cx.fillStyle='rgba(200,139,255,.3)';
+    cx.beginPath();cx.arc(m.x,y,9,0,TAU);cx.fill(); cx.shadowBlur=0;
+    cx.font='16px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('💀',m.x,y);
+    cx.restore();
+  }
+  cx.globalAlpha=1;
+}
 
 // ---------- Loop (passo fixo: simulação determinística p/ seed) ----------
 //  A física avança sempre em fatias de FIXED_DT, independente do FPS.
@@ -2327,7 +2454,7 @@ function update(dt){
     } P._whirlTick-=dt;
   }
 
-  fireWeapons(dt); updateOrbital(dt); updateBeams(dt); updatePets(dt);
+  fireWeapons(dt); updateOrbital(dt); updateBeams(dt); updatePets(dt); updateMinions(dt);
 
   for(const e of enemies){
     if(e.dead)continue;
@@ -2337,6 +2464,10 @@ function update(dt){
     if(!e.boss)collideRocks(e);
     const rr=e.r+P.r;
     if(dist2(P,e)<rr*rr&&P.invuln<=0){
+      if(P.dodge>0 && Math.random()<P.dodge){            // esquiva (Assassino): evita o golpe
+        P.invuln=0.4; dmgTexts.push({x:P.x,y:P.y-P.r,txt:'esquiva',t:0.6,crit:false});
+        continue;
+      }
       P.hp-=Math.max(1,e.dmg-P.armor); P.invuln=0.5; shake=Math.min(shake+4,18);
       combo=0; comboTimer=0; $('combo').style.opacity='0';
       for(let i=0;i<6;i++)particles.push({x:P.x,y:P.y,vx:rand(-2,2),vy:rand(-2,2),t:0.4,c:'#ff5a7a',r:2});
@@ -2358,6 +2489,12 @@ function update(dt){
     b.x+=b.vx*60*dt;b.y+=b.vy*60*dt;b.life-=dt;
     // rochas bloqueiam projéteis retos (holy/bumerangue orbitam o jogador -> passam)
     if(!b.holy&&!b.boomer){ for(const k of arena.rocks){ const rr=k.r+b.r; if(dist2(b,k)<rr*rr){ b.dead=true; break; } } }
+    if(b.fireball){                              // bola de fogo: explode ao tocar inimigo ou ao expirar
+      let hit=b.life<=0;
+      for(const e of enemies){ if(e.dead)continue; const rr=b.r+e.r; if(dist2(b,e)<rr*rr){ hit=true; break; } }
+      if(hit){ explodeAt(b.x,b.y,b.boomR,b.boomDmg,'#ff7a3a',0); b.dead=true; }
+      continue;
+    }
     for(const e of enemies){if(e.dead||b.dead)continue;const rr=b.r+e.r;
       if(dist2(b,e)<rr*rr){if(!b._hitSet)b._hitSet=new Set();if(b._hitSet.has(e))continue;
         damageEnemy(e,b.dmg,b.vx,b.vy);b._hitSet.add(e);if(b.pierce>0)b.pierce--;else b.dead=true;}}
@@ -2621,6 +2758,7 @@ function render(){
   cx.restore();cx.shadowBlur=0;
 
   drawPets();
+  drawMinions();
   drawEventObjs();
 
   cx.textAlign='center';
