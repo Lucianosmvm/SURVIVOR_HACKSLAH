@@ -271,10 +271,10 @@
     display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;
     overflow:hidden; box-shadow:0 0 12px rgba(255,210,122,.35); }
   .lb-ava img{ width:100%; height:100%; object-fit:cover; }
-  .lb-plvl{ position:absolute; left:50%; bottom:-6px; transform:translateX(-50%);
-    min-width:15px; height:14px; padding:0 4px; border-radius:7px; line-height:1;
+  .lb-plvl{ display:inline-flex; align-items:center; justify-content:center; vertical-align:middle;
+    padding:1px 6px; margin-right:5px; border-radius:7px; line-height:1;
     background:linear-gradient(180deg,#3a2f12,#1a1408); border:1px solid #ffd27a; color:#ffd27a;
-    font-weight:900; font-size:9px; display:flex; align-items:center; justify-content:center; }
+    font-weight:900; font-size:10px; }
   .lb-prof-info{ flex:1; min-width:0; }
   .lb-pname{ font-size:13px; font-weight:bold; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lb-pname #lbTag{ color:#ffd27a; font-weight:bold; font-size:11px; margin-left:4px; }
@@ -454,9 +454,9 @@
   <!-- top bar -->
   <div class="lb-top">
     <div class="lb-prof" id="lbProf">
-      <div class="lb-ava" id="lbAva"><span>🛡️</span><span class="lb-plvl" id="lbPlvl">1</span></div>
+      <div class="lb-ava" id="lbAva"><span>🛡️</span></div>
       <div class="lb-prof-info">
-        <div class="lb-pname"><span id="lbPname">Herói</span> <span id="lbTag">#0001</span></div>
+        <div class="lb-pname"><span class="lb-plvl" id="lbPlvl">Nv 1</span><span id="lbPname">Herói</span> <span id="lbTag">#0001</span></div>
         <div class="lb-power">Crônicas do Vazio</div>
         <div class="lb-pxp"><div id="lbPxp"></div></div>
       </div>
@@ -1895,7 +1895,7 @@ function renderLobby(){
   let bought=0,maxTot=0,afford=false;
   META_UPGRADES.forEach(u=>{ const l=META[u.id]||0; bought+=l; maxTot+=u.max;
     if(l<u.max && bankGold>=u.cost(l)) afford=true; });
-  $('lbPlvl').textContent=bought+1;
+  $('lbPlvl').textContent='Nv '+(bought+1);
   $('lbPxp').style.width=(maxTot?bought/maxTot*100:0)+'%';
   $('lbTag').textContent='#'+String(1001+bought);
   $('lbShopDot').style.display=afford?'block':'none';
@@ -1907,7 +1907,7 @@ function renderLobby(){
   if(av){ avInner = av.img ? `<img src="${av.img}" alt="">` : `<span>${av.icon}</span>`; }
   else { const cd=charImage(CLASSES[lobbyIdx]);
     avInner = cd?`<img src="${cd}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${CLASSES[lobbyIdx].icon}'}))">`:`<span>${CLASSES[lobbyIdx].icon}</span>`; }
-  $('lbAva').innerHTML = avInner + `<span class="lb-plvl" id="lbPlvl">${bought+1}</span>`;
+  $('lbAva').innerHTML = avInner;
   document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n.dataset.act==='home'));
   const sp=(selectedPet&&isPetUnlocked(selectedPet))?petById(selectedPet):null;   // painel companheiro
   $('lbPetIcon').textContent=sp?sp.icon:'🐾';
