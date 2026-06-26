@@ -436,6 +436,8 @@
     <button class="lb-tab active" data-act="home"><span class="ti">🏰</span>INÍCIO</button>
     <button class="lb-tab" data-act="hero"><span class="ti">🦸</span>HERÓIS</button>
     <button class="lb-tab" data-act="shop"><span class="ti">🛒</span>LOJA<i class="lb-dot" id="lbShopDot" style="display:none"></i></button>
+    <button class="lb-tab" data-act="missions"><span class="ti">📜</span>MISSÕES<i class="lb-dot" id="lbMissDot" style="display:none"></i></button>
+    <button class="lb-tab" data-act="achv"><span class="ti">🏆</span>TROFÉUS<i class="lb-dot" id="lbAchvDot" style="display:none"></i></button>
     <button class="lb-tab" data-act="how"><span class="ti">📖</span>AJUDA</button>
   </div>
 </div>
@@ -478,6 +480,22 @@
   <p class="sub">Melhorias <b>permanentes</b>, valem em todas as partidas.<br>Ouro: <b id="shopGold" style="color:#ffd27a">0</b> ✦</p>
   <div class="upgrades" id="shopList"></div>
   <button class="btn ghost" id="shopBack">◀ Voltar</button>
+</div>
+
+<!-- MISSÕES -->
+<div class="screen hidden" id="missions">
+  <h2>📜 Missões</h2>
+  <p class="sub">Cumpra objetivos e <b>resgate ouro</b> pra Loja.<br>Ouro: <b id="missGold" style="color:#ffd27a">0</b> ✦</p>
+  <div class="upgrades" id="missList"></div>
+  <button class="btn ghost" id="missBack">◀ Voltar</button>
+</div>
+
+<!-- CONQUISTAS -->
+<div class="screen hidden" id="achv">
+  <h2>🏆 Conquistas</h2>
+  <p class="sub"><b id="achvCount" style="color:#ffd27a">0/0</b> desbloqueadas</p>
+  <div class="upgrades" id="achvList"></div>
+  <button class="btn ghost" id="achvBack">◀ Voltar</button>
 </div>
 
 <!-- LEVEL UP -->
@@ -536,7 +554,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','mapselect','shop','levelup','pause','gameover'];
+const SCREENS=['menu','how','select','mapselect','shop','missions','achv','levelup','pause','gameover'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -1050,6 +1068,7 @@ function petById(id){ return PETS.find(p=>p.id===id); }
 function addPet(id){
   const def=petById(id); if(!def||!P.pets)return;
   P.pets.push({def,id,level:1,x:P.x,y:P.y,cd:rand(0,0.6),bob:0,slash:null});
+  STATS.maxPets=Math.max(STATS.maxPets,P.pets.length);
   toast(def.icon+' '+def.name+' juntou-se!');
 }
 
@@ -1096,6 +1115,7 @@ function startEvent(def){
   resetEnv();
   activeEvent={def,t:def.dur,sub:0};
   if(def.start)def.start(activeEvent);
+  STATS.eventsSeen++;
   toast(def.warn);
 }
 function endEvent(){
@@ -1213,6 +1233,118 @@ bindBtn($('dashBtn'),doDash); bindBtn($('ultBtn'),doUlt);
 // ---------- Menu wiring ----------
 function loadRecord(){ return parseInt(localStorage.getItem('void_record')||'0',10); }
 function saveRecord(t){ if(t>loadRecord()) localStorage.setItem('void_record',String(Math.floor(t))); }
+
+// ---------- Conquistas ----------
+//  STATS = contadores persistentes (cumulativos/recordes). ACHV = ids desbloqueados.
+//  Contadores sobem ao vivo na run (em memória) e são salvos no gameOver.
+//  test() lê STATS; checkAchievements roda no gameOver, ao abrir a tela e no boot.
+const ACHIEVEMENTS=[
+  {id:'kill100',  icon:'💀', name:'Caçador',           desc:'Mate 100 monstros',           test:s=>s.totalKills>=100},
+  {id:'kill1000', icon:'☠️', name:'Exterminador',      desc:'Mate 1.000 monstros',         test:s=>s.totalKills>=1000},
+  {id:'kill10000',icon:'🔱', name:'Ceifador',          desc:'Mate 10.000 monstros',        test:s=>s.totalKills>=10000},
+  {id:'boss1',    icon:'👑', name:'Matador de Chefes', desc:'Derrote 1 chefe',             test:s=>s.bossKills>=1},
+  {id:'boss10',   icon:'🐲', name:'Algoz',             desc:'Derrote 10 chefes',           test:s=>s.bossKills>=10},
+  {id:'surv5',    icon:'⏱️', name:'Sobrevivente',      desc:'Sobreviva 5 min numa partida',test:s=>s.bestTime>=300},
+  {id:'surv15',   icon:'🕰️', name:'Inabalável',        desc:'Sobreviva 15 min numa partida',test:s=>s.bestTime>=900},
+  {id:'lvl20',    icon:'⭐', name:'Veterano',          desc:'Chegue ao nível 20',          test:s=>s.bestLevel>=20},
+  {id:'gold10k',  icon:'✦',  name:'Ganancioso',        desc:'Tenha 10.000 ouro no banco',  test:s=>s.bankMax>=10000},
+  {id:'pets3',    icon:'🐾', name:'Domador',           desc:'Tenha 3 pets numa partida',   test:s=>s.maxPets>=3},
+  {id:'events10', icon:'🎲', name:'Aventureiro',       desc:'Presencie 10 eventos',        test:s=>s.eventsSeen>=10},
+  {id:'allclass', icon:'🎭', name:'Mestre das Classes',desc:'Desbloqueie todas as classes',test:s=>CLASSES.every(c=>isUnlocked(c.id))},
+];
+const STAT_DEFAULTS={totalKills:0,bossKills:0,bestTime:0,bestLevel:0,bankMax:0,maxPets:0,eventsSeen:0,chestsOpened:0,goldEarned:0,runsPlayed:0};
+function loadStats(){ try{return Object.assign({},STAT_DEFAULTS,JSON.parse(localStorage.getItem('void_stats'))||{});}catch(e){return {...STAT_DEFAULTS};} }
+function saveStats(){ localStorage.setItem('void_stats',JSON.stringify(STATS)); }
+function loadAchv(){ try{return JSON.parse(localStorage.getItem('void_achv'))||{};}catch(e){return {};} }
+function saveAchv(){ localStorage.setItem('void_achv',JSON.stringify(ACHV)); }
+let STATS=loadStats(), ACHV=loadAchv();
+function checkAchievements(){
+  let any=false;
+  for(const a of ACHIEVEMENTS){
+    if(ACHV[a.id])continue;
+    if(a.test(STATS)){ ACHV[a.id]=true; any=true;
+      const msg=a.icon+' Conquista: '+a.name;
+      if(running) toast(msg); else menuToast(msg);
+    }
+  }
+  if(any)saveAchv();
+  updateAchvDot();
+}
+function updateAchvDot(){
+  const el=$('lbAchvDot'); if(!el)return;
+  const done=ACHIEVEMENTS.filter(a=>ACHV[a.id]).length;
+  const seen=parseInt(localStorage.getItem('void_achv_seen')||'0',10);
+  el.style.display=done>seen?'block':'none';   // há conquista nova ainda não vista
+}
+function buildAchievements(){
+  checkAchievements();
+  const done=ACHIEVEMENTS.filter(a=>ACHV[a.id]).length;
+  localStorage.setItem('void_achv_seen',String(done));   // marca como vistas
+  $('achvCount').textContent=done+'/'+ACHIEVEMENTS.length;
+  const el=$('achvList'); el.innerHTML='';
+  for(const a of ACHIEVEMENTS){
+    const got=!!ACHV[a.id];
+    const d=document.createElement('div'); d.className='up';
+    d.style.opacity=got?'1':'0.5';
+    if(got)d.style.borderColor='#ffd27a';
+    d.innerHTML=`<div class="ut"><span>${a.icon} ${a.name}</span><span class="lvl">${got?'✅':'🔒'}</span></div><div class="ud">${a.desc}</div>`;
+    el.appendChild(d);
+  }
+  updateAchvDot();   // some o badge após marcar como vistas
+}
+
+// ---------- Missões ----------
+//  Objetivos com recompensa em ouro (vai pro banco). Progresso lido de STATS.
+//  Estados: em progresso -> pronto (resgatar) -> resgatado. cur()/goal -> barra.
+const MISSIONS=[
+  {id:'m_surv10', name:'Sobreviva 10 minutos', reward:200, goal:600,   cur:s=>s.bestTime,    fmt:fmtTime},
+  {id:'m_kill1k', name:'Mate 1.000 monstros',  reward:150, goal:1000,  cur:s=>s.totalKills},
+  {id:'m_boss5',  name:'Derrote 5 chefes',     reward:200, goal:5,     cur:s=>s.bossKills},
+  {id:'m_chest30',name:'Abra 30 baús',         reward:150, goal:30,    cur:s=>s.chestsOpened},
+  {id:'m_pets3',  name:'Junte 3 pets numa partida', reward:120, goal:3, cur:s=>s.maxPets},
+  {id:'m_event15',name:'Presencie 15 eventos', reward:150, goal:15,    cur:s=>s.eventsSeen},
+  {id:'m_gold20k',name:'Ganhe 20.000 de ouro no total', reward:250, goal:20000, cur:s=>s.goldEarned},
+  {id:'m_runs10', name:'Jogue 10 partidas',    reward:100, goal:10,    cur:s=>s.runsPlayed},
+];
+function loadMissions(){ try{return JSON.parse(localStorage.getItem('void_missions'))||{};}catch(e){return {};} }
+function saveMissions(){ localStorage.setItem('void_missions',JSON.stringify(MISSIONS_DONE)); }
+let MISSIONS_DONE=loadMissions();
+function missReady(m){ return !MISSIONS_DONE[m.id] && m.cur(STATS)>=m.goal; }
+function updateMissionDot(){
+  const el=$('lbMissDot'); if(!el)return;
+  el.style.display=MISSIONS.some(missReady)?'block':'none';   // há recompensa p/ resgatar
+}
+function claimMission(m){
+  if(!missReady(m))return;
+  MISSIONS_DONE[m.id]=true; saveMissions();
+  bankGold+=m.reward; saveBank();
+  menuToast('📜 +'+m.reward+' ✦ — '+m.name);
+  buildMissions(); renderLobby();
+}
+function buildMissions(){
+  $('missGold').textContent=bankGold.toLocaleString('pt-BR');
+  const el=$('missList'); el.innerHTML='';
+  for(const m of MISSIONS){
+    const cur=m.cur(STATS), done=!!MISSIONS_DONE[m.id], ready=missReady(m);
+    const pct=Math.min(100, cur/m.goal*100);
+    const curTxt=m.fmt?m.fmt(Math.min(cur,m.goal)):Math.min(cur,m.goal).toLocaleString('pt-BR');
+    const goalTxt=m.fmt?m.fmt(m.goal):m.goal.toLocaleString('pt-BR');
+    const d=document.createElement('div'); d.className='up'; d.style.opacity=done?'0.55':'1';
+    if(ready)d.style.borderColor='#ffd27a';
+    d.innerHTML=`<div class="ut"><span>${m.name}</span><span class="lvl" style="color:#ffd27a">+${m.reward} ✦</span></div>
+      <div class="ud">${done?'✅ Resgatada':curTxt+' / '+goalTxt}</div>
+      <div style="height:7px;border-radius:5px;background:#1a1830;border:1px solid #2a2750;overflow:hidden;margin-top:6px">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7af5ff,#b388ff)"></div></div>`;
+    if(ready){
+      const b=document.createElement('button'); b.className='btn'; b.textContent='Resgatar';
+      b.style.cssText='margin-top:8px;padding:8px 22px;font-size:15px';
+      b.onclick=()=>claimMission(m);
+      d.appendChild(b);
+    }
+    el.appendChild(d);
+  }
+  updateMissionDot();
+}
 // ---------- Lobby ----------
 let lobbyIdx=0;
 // Canvas do retrato (criado 1x). Evita toDataURL (quebra em file:// por taint de canvas).
@@ -1292,6 +1424,8 @@ function renderLobby(){
   $('lbAva').innerHTML = (cd?`<img src="${cd}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${CLASSES[lobbyIdx].icon}'}))">`:`<span>${CLASSES[lobbyIdx].icon}</span>`)
     +`<span class="lb-plvl" id="lbPlvl">${bought+1}</span>`;
   document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n.dataset.act==='home'));
+  checkAchievements();   // reconcilia conquistas (ex.: todas as classes) e atualiza o badge
+  updateMissionDot();    // badge de missão pronta p/ resgatar
   renderHero();
 }
 // compat shims (called from elsewhere)
@@ -1302,6 +1436,8 @@ function lobbyAct(a){
   if(a==='home'){ /* already home */ }
   else if(a==='hero'){ buildClassCards(); show('select'); }
   else if(a==='shop'){ buildShop(); show('shop'); }
+  else if(a==='missions'){ buildMissions(); show('missions'); }
+  else if(a==='achv'){ buildAchievements(); show('achv'); }
   else if(a==='how'){ show('how'); }
 }
 document.querySelectorAll('#menu [data-act]').forEach(b=>{
@@ -1324,6 +1460,8 @@ $('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); }
 renderLobby();
 
 $('shopBack').onclick=()=>{ renderLobby(); show('menu'); };
+$('achvBack').onclick=()=>{ renderLobby(); show('menu'); };
+$('missBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('howBack').onclick=()=>show('menu');
 $('selBack').onclick=()=>{ renderLobby(); show('menu'); };
 $('startBtn').onclick=()=>{
@@ -1560,6 +1698,7 @@ function damageEnemy(e,dmg,kbx=0,kby=0){
 }
 function killEnemy(e){
   e.dead=true;kills++; addCombo();
+  STATS.totalKills++; if(e.boss)STATS.bossKills++;
   if(P.healOnKill)P.hp=Math.min(P.maxhp,P.hp+P.healOnKill);
   for(let i=0;i<(e.boss?40:6);i++)particles.push({x:e.x,y:e.y,vx:rand(-3,3),vy:rand(-3,3),t:0.5,c:e.c,r:rand(1,3)});
   orbs.push({x:e.x,y:e.y,xp:e.xp,gold:e.gold,r:5,pull:false});
@@ -1850,7 +1989,7 @@ function update(dt){
   for(const w of arena.objs){
     if(!w.t.chest||w.collected)continue;
     const rr=P.r+w.r;
-    if(dist2(P,w)<rr*rr){ w.collected=true;
+    if(dist2(P,w)<rr*rr){ w.collected=true; STATS.chestsOpened++;
       gold+=(w.t.gold||0)*(P.goldMul||1); gainXP(w.t.xp||0);
       toast('📦 +'+(w.t.gold||0)+' ouro');
       for(let i=0;i<10;i++)particles.push({x:w.x,y:w.y,vx:rand(-2.5,2.5),vy:rand(-2.5,2.5),t:0.5,c:'#ffd27a',r:2});
@@ -1871,6 +2010,11 @@ function gainXP(n){
 function gameOver(){
   running=false; saveRecord(gameTime);
   const earned=Math.floor(gold); bankGold+=earned; saveBank();
+  STATS.bestTime=Math.max(STATS.bestTime,Math.floor(gameTime));
+  STATS.bestLevel=Math.max(STATS.bestLevel,P.level);
+  STATS.bankMax=Math.max(STATS.bankMax,bankGold);
+  STATS.goldEarned+=earned; STATS.runsPlayed++;
+  saveStats(); checkAchievements(); updateMissionDot();
   $('go-stats').innerHTML=`Sobreviveu <b>${fmtTime(gameTime)}</b> · Nível <b>${P.level}</b> · <b>${kills}</b> abates<br>+<b style="color:#ffd27a">${earned}</b> ✦ ganho · Total: <b style="color:#ffd27a">${bankGold}</b> ✦`;
   $('go-record').innerHTML='🏆 Recorde: '+fmtTime(loadRecord())+' · 🌱 Seed <b>'+seedToStr(runSeed)+'</b> ('+arena.biome.name+')<br>🛒 Gaste o ouro na Loja!';
   $('hud').classList.add('hidden'); $('topRight').classList.add('hidden'); $('actions').classList.add('hidden'); $('wavebar').classList.add('hidden');
