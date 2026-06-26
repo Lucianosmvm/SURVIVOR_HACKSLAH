@@ -2624,11 +2624,14 @@ function render(){
   // chão: tiles visíveis (cor ou imagem) — base de tudo, determinístico por posição
   const tx0=Math.floor((P.x-W/2)/TILE)-1, ty0=Math.floor((P.y-H/2)/TILE)-1;
   const tx1=Math.ceil((P.x+W/2)/TILE)+1,  ty1=Math.ceil((P.y+H/2)/TILE)+1;
+  const prevSmooth=cx.imageSmoothingEnabled; cx.imageSmoothingEnabled=false;
   for(let ty=ty0;ty<ty1;ty++)for(let tx=tx0;tx<tx1;tx++){
     const g=groundAt(tx,ty), im=groundImages[g.id];
-    if(im&&im.complete&&im.naturalWidth){ cx.drawImage(im,tx*TILE,ty*TILE,TILE,TILE); }
-    else { cx.fillStyle=g.c; cx.fillRect(tx*TILE,ty*TILE,TILE,TILE); }
+    // +1px no tamanho cobre as costuras causadas pela translação fracionária da câmera
+    if(im&&im.complete&&im.naturalWidth){ cx.drawImage(im,tx*TILE,ty*TILE,TILE+1,TILE+1); }
+    else { cx.fillStyle=g.c; cx.fillRect(tx*TILE,ty*TILE,TILE+1,TILE+1); }
   }
+  cx.imageSmoothingEnabled=prevSmooth;
 
   // decoração de fundo (manchas/pontos do bioma) — sob a grade, varia por região
   for(const d of arena.decor){
