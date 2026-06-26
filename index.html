@@ -25,6 +25,17 @@
   }
   .hidden { display:none !important; }
 
+  /* Rodapé de ações fixo nos menus roláveis — botões sempre acessíveis embaixo. */
+  .scrfoot {
+    position:sticky; bottom:0; margin-top:auto; z-index:6;
+    width:100%; max-width:560px;
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+    padding:12px 0 max(4px,env(safe-area-inset-bottom));
+    background:linear-gradient(to top, rgba(5,6,10,.97) 72%, rgba(5,6,10,0));
+  }
+  /* nas telas com rodapé fixo, alinha o conteúdo ao topo (evita corte por centralização) */
+  .screen.haspad { justify-content:flex-start; }
+
   h1 { font-size:clamp(34px,9vw,68px); letter-spacing:2px; line-height:1.05;
     background:linear-gradient(90deg,#7af5ff,#b388ff,#ff7ad9); -webkit-background-clip:text; background-clip:text; color:transparent;
     text-shadow:0 0 30px rgba(140,100,255,.4); }
@@ -512,7 +523,7 @@
 </div>
 
 <!-- HOW TO PLAY -->
-<div class="screen hidden" id="how">
+<div class="screen hidden haspad" id="how">
   <h2>Como jogar</h2>
   <div class="sub" style="text-align:left">
     🕹️ <b>Mover:</b> arraste o dedo em qualquer lugar (PC: WASD/setas).<br><br>
@@ -524,83 +535,89 @@
     🔗 <b>Combine:</b> empilhe armas + passivas (dano, área, crítico) pra builds fortes.<br><br>
     💀 <b>Chefe:</b> surge a cada 60s. Sobreviva o máximo que puder.
   </div>
-  <button class="btn ghost" id="howBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="howBack">◀ Voltar</button></div>
 </div>
 
 <!-- CLASS SELECT -->
-<div class="screen hidden" id="select">
+<div class="screen hidden haspad" id="select">
   <h2>Escolha sua classe</h2>
   <div class="classes" id="classes"></div>
-  <button class="btn" id="startBtn" disabled style="opacity:.5">Selecione uma classe</button>
-  <button class="btn ghost" id="selBack">◀ Voltar</button>
+  <div class="scrfoot">
+    <button class="btn" id="startBtn" disabled style="opacity:.5">Selecione uma classe</button>
+    <button class="btn ghost" id="selBack">◀ Voltar</button>
+  </div>
 </div>
 
 <!-- MAP SELECT -->
-<div class="screen hidden" id="mapselect">
+<div class="screen hidden haspad" id="mapselect">
   <h2>Escolha o mapa</h2>
   <p class="sub">Cada mapa tem cenário, objetos e inimigos próprios.</p>
   <div class="classes" id="mapcards"></div>
-  <button class="btn ghost" id="mapBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="mapBack">◀ Voltar</button></div>
 </div>
 
 <!-- PETS -->
-<div class="screen hidden" id="pets">
+<div class="screen hidden haspad" id="pets">
   <h2>🐾 Companheiros</h2>
   <p class="sub">Desbloqueie, selecione <b>1</b> e aprimore com ouro.<br>🔮 Runa (drop de chefe) é exigida nos níveis altos.<br>Ouro: <b id="petGold" style="color:#ffd27a">0</b> ✦ · Runas: <b id="petRunes" style="color:#c08bff">0</b> 🔮</p>
   <div class="classes" id="petcards"></div>
-  <button class="btn ghost" id="petBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="petBack">◀ Voltar</button></div>
 </div>
 
 <!-- INVENTÁRIO / EQUIPAMENTO -->
-<div class="screen hidden" id="inv">
+<div class="screen hidden haspad" id="inv">
   <h2>🎒 Equipamento</h2>
   <p class="sub">Toque num item p/ equipar · num slot cheio p/ remover.<br>Itens caem de monstros (chefes garantem).</p>
   <div class="inv-slots" id="invSlots"></div>
   <div class="lb-ptitle" style="margin-top:8px">MOCHILA · <span id="invCount">0</span>/60</div>
   <div class="inv-list" id="invList"></div>
-  <button class="btn" id="invForge" style="margin-top:4px">🔨 Forja</button>
-  <button class="btn ghost" id="invBack">◀ Voltar</button>
+  <div class="scrfoot">
+    <button class="btn" id="invForge">🔨 Forja</button>
+    <button class="btn ghost" id="invBack">◀ Voltar</button>
+  </div>
 </div>
 
 <!-- FORJA -->
-<div class="screen hidden" id="forge">
+<div class="screen hidden haspad" id="forge">
   <h2>🔨 Forja</h2>
   <p class="sub">Funda itens em 🔩 Fragmentos · Reforje atributos · Eleve a raridade.<br>Ouro: <b id="fgGold" style="color:#ffd27a">0</b> ✦ · Fragmentos: <b id="fgFrags" style="color:#ffb86a">0</b> 🔩</p>
   <div class="inv-list" id="forgeList"></div>
-  <button class="btn ghost" id="forgeBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="forgeBack">◀ Voltar</button></div>
 </div>
 
 <!-- SHOP -->
-<div class="screen hidden" id="shop">
+<div class="screen hidden haspad" id="shop">
   <h2>🛒 Loja de Melhorias</h2>
   <p class="sub">Melhorias <b>permanentes</b>, valem em todas as partidas.<br>Ouro: <b id="shopGold" style="color:#ffd27a">0</b> ✦</p>
   <div class="upgrades" id="shopList"></div>
-  <button class="btn ghost" id="shopBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="shopBack">◀ Voltar</button></div>
 </div>
 
 <!-- TALENTOS -->
-<div class="screen hidden" id="talents">
+<div class="screen hidden haspad" id="talents">
   <h2>🌳 Árvore de Talentos</h2>
   <p class="sub">Bônus <b>permanentes</b>. Ganhe <b>PT</b> jogando.<br>Pontos: <b id="talPts" style="color:#7af5ff">0</b> 🌟</p>
   <div class="tal-grid" id="talGrid"></div>
-  <button class="btn ghost" id="talReset" style="margin-top:4px">↺ Resetar (devolve PT)</button>
-  <button class="btn ghost" id="talBack">◀ Voltar</button>
+  <div class="scrfoot">
+    <button class="btn ghost" id="talReset">↺ Resetar PT</button>
+    <button class="btn ghost" id="talBack">◀ Voltar</button>
+  </div>
 </div>
 
 <!-- MISSÕES -->
-<div class="screen hidden" id="missions">
+<div class="screen hidden haspad" id="missions">
   <h2>📜 Missões</h2>
   <p class="sub">Cumpra objetivos e <b>resgate ouro</b> pra Loja.<br>Ouro: <b id="missGold" style="color:#ffd27a">0</b> ✦</p>
   <div class="upgrades" id="missList"></div>
-  <button class="btn ghost" id="missBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="missBack">◀ Voltar</button></div>
 </div>
 
 <!-- CONQUISTAS -->
-<div class="screen hidden" id="achv">
+<div class="screen hidden haspad" id="achv">
   <h2>🏆 Conquistas</h2>
   <p class="sub"><b id="achvCount" style="color:#ffd27a">0/0</b> desbloqueadas</p>
   <div class="upgrades" id="achvList"></div>
-  <button class="btn ghost" id="achvBack">◀ Voltar</button>
+  <div class="scrfoot"><button class="btn ghost" id="achvBack">◀ Voltar</button></div>
 </div>
 
 <!-- LEVEL UP -->
