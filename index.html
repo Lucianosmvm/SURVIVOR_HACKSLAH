@@ -3086,7 +3086,7 @@ function render(){
     if(P.cls.sprite){                        // personagem animado: quadro da folha de sprites
       drawCharSprite(cx,P.cls.sprite,cimg,P.x,P.y,pdr*2, P.moving?'walk':'idle', P.animT, P.facing.x<0);
     } else {                                 // personagem estático: sprite livre com flip direcional
-      const pfaceDir = P.facing.x < 0 ? -1 : 1;
+      const pfaceDir = P.facing.x < 0 ? 1 : -1;
       cx.save();
       cx.translate(P.x, P.y+pbob);
       cx.scale((1+psq)*pfaceDir, 1-psq);
