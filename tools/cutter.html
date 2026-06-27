@@ -29,10 +29,19 @@ input[type=file] { display: none; }
 .btn.ghost { background: #161430; color: #cdd2f0; border: 1px solid #2a2750; }
 .btn:disabled { opacity: .4; cursor: default; }
 
+/* offset section */
+.offset-section { background: #120f2a; border: 1px solid #2a2750; border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 14px; }
+.offset-section .title { font-size: 12px; color: #ffd27a; font-weight: bold; margin-bottom: 8px; }
+.offset-hint { font-size: 11px; color: #5a6090; margin-top: 6px; }
+
 /* preview */
-#previewWrap { position: relative; display: inline-block; max-width: 100%; overflow: auto; }
+#previewWrap { position: relative; display: inline-block; max-width: 100%; overflow: auto; cursor: crosshair; }
 #previewWrap canvas { display: block; }
 #gridCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+#clickCanvas { position: absolute; top: 0; left: 0; }
+
+.preview-tip { font-size: 11px; color: #7af5ff; margin-top: 8px; }
 
 /* cells */
 .cells-grid { display: grid; gap: 10px; margin-top: 14px; }
@@ -73,9 +82,9 @@ input[type=file] { display: none; }
 <div class="card" id="settingsCard" style="display:none">
   <label style="margin-bottom:8px;font-size:13px;color:#ffd27a;font-weight:bold">CONFIGURAR GRADE</label>
 
-  <!-- toggle -->
+  <!-- toggle modo -->
   <div style="display:flex;gap:8px;margin-bottom:14px">
-    <button class="btn" id="modePx"  style="padding:7px 18px;font-size:13px">Por pixels (largura × altura)</button>
+    <button class="btn" id="modePx"   style="padding:7px 18px;font-size:13px">Por pixels (largura × altura)</button>
     <button class="btn ghost" id="modeGrid" style="padding:7px 18px;font-size:13px">Por grade (cols × linhas)</button>
   </div>
 
@@ -127,21 +136,41 @@ input[type=file] { display: none; }
     </div>
   </div>
 
+  <!-- PONTO DE INÍCIO -->
+  <div class="offset-section" style="margin-top:14px">
+    <div class="title">📍 PONTO DE INÍCIO DA GRADE</div>
+    <div class="row">
+      <div class="col">
+        <label>Início X (px)</label>
+        <input type="number" id="offX" value="0" min="0" max="4096">
+      </div>
+      <div class="col">
+        <label>Início Y (px)</label>
+        <input type="number" id="offY" value="0" min="0" max="4096">
+      </div>
+    </div>
+    <p class="offset-hint">💡 Ou clique na prévia para posicionar o início da grade.</p>
+  </div>
+
   <p class="hint" id="cellInfo" style="margin-top:10px"></p>
-  <div style="margin-top:14px">
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
     <button class="btn" id="applyBtn">Aplicar grade</button>
+    <button class="btn ghost" id="resetOffset">↺ Resetar início (0,0)</button>
   </div>
 </div>
 
 <!-- PREVIEW -->
 <div class="card" id="previewCard" style="display:none">
-  <label style="font-size:13px;color:#ffd27a;font-weight:bold;margin-bottom:12px">PRÉVIA DA GRADE</label>
-  <div style="overflow:auto;max-width:100%">
+  <label style="font-size:13px;color:#ffd27a;font-weight:bold;margin-bottom:4px">PRÉVIA DA GRADE</label>
+  <p class="preview-tip">🖱️ Clique na imagem para redefinir o ponto de início da grade em tempo real.</p>
+  <div style="overflow:auto;max-width:100%;margin-top:8px">
     <div id="previewWrap">
       <canvas id="imgCanvas"></canvas>
       <canvas id="gridCanvas"></canvas>
+      <canvas id="clickCanvas"></canvas>
     </div>
   </div>
+  <p class="hint" id="offsetDisplay" style="margin-top:8px;color:#b388ff"></p>
 </div>
 
 <!-- CÉLULAS -->
@@ -162,60 +191,57 @@ input[type=file] { display: none; }
 <script>
 const OBJ_NAMES = [
   '— ignorar —',
-  'obj_tree',
-  'obj_tree2',
-  'obj_tree_dead',
-  'obj_rock',
-  'obj_rock2',
-  'obj_bush',
-  'obj_stump',
-  'obj_grass_t',
-  'obj_flower',
-  'obj_campfire',
-  'obj_barrel',
-  'obj_crystal',
+  'obj_tree','obj_tree2','obj_tree_dead',
+  'obj_rock','obj_rock2',
+  'obj_bush','obj_stump','obj_grass_t','obj_flower',
+  'obj_campfire','obj_barrel','obj_crystal',
 ];
 
 let img = null, cols = 4, rows = 3, zoom = 1;
 let cellW = 0, cellH = 0;
+let offsetX = 0, offsetY = 0;   // ponto de início da grade
 let thumbs = [];
-let modePxActive = true; // true = por pixels, false = por grade
+let modePxActive = true;
 
-const fileIn       = document.getElementById('fileIn');
-const imgInfo      = document.getElementById('imgInfo');
-const settingsCard = document.getElementById('settingsCard');
-const previewCard  = document.getElementById('previewCard');
-const cellsCard    = document.getElementById('cellsCard');
-const colsIn       = document.getElementById('cols');
-const rowsIn       = document.getElementById('rows');
-const cellWIn      = document.getElementById('cellWIn');
-const cellHIn      = document.getElementById('cellHIn');
-const zoomSel      = document.getElementById('zoom');
-const zoomSel2     = document.getElementById('zoom2');
-const cellInfo     = document.getElementById('cellInfo');
-const applyBtn     = document.getElementById('applyBtn');
-const imgCanvas    = document.getElementById('imgCanvas');
-const gridCanvas   = document.getElementById('gridCanvas');
-const cellsGrid    = document.getElementById('cellsGrid');
-const offscreen    = document.getElementById('offscreen');
-const status       = document.getElementById('status');
-const panelPx      = document.getElementById('panelPx');
-const panelGrid    = document.getElementById('panelGrid');
-const btnModePx    = document.getElementById('modePx');
-const btnModeGrid  = document.getElementById('modeGrid');
+const fileIn        = document.getElementById('fileIn');
+const imgInfo       = document.getElementById('imgInfo');
+const settingsCard  = document.getElementById('settingsCard');
+const previewCard   = document.getElementById('previewCard');
+const cellsCard     = document.getElementById('cellsCard');
+const colsIn        = document.getElementById('cols');
+const rowsIn        = document.getElementById('rows');
+const cellWIn       = document.getElementById('cellWIn');
+const cellHIn       = document.getElementById('cellHIn');
+const zoomSel       = document.getElementById('zoom');
+const zoomSel2      = document.getElementById('zoom2');
+const offXIn        = document.getElementById('offX');
+const offYIn        = document.getElementById('offY');
+const cellInfo      = document.getElementById('cellInfo');
+const applyBtn      = document.getElementById('applyBtn');
+const imgCanvas     = document.getElementById('imgCanvas');
+const gridCanvas    = document.getElementById('gridCanvas');
+const clickCanvas   = document.getElementById('clickCanvas');
+const cellsGrid     = document.getElementById('cellsGrid');
+const status        = document.getElementById('status');
+const panelPx       = document.getElementById('panelPx');
+const panelGrid     = document.getElementById('panelGrid');
+const btnModePx     = document.getElementById('modePx');
+const btnModeGrid   = document.getElementById('modeGrid');
+const offsetDisplay = document.getElementById('offsetDisplay');
 
-// alternância de modo
+// --- modo (pixels vs grade) ---
 function setMode(px) {
   modePxActive = px;
-  panelPx.style.display   = px ? '' : 'none';
-  panelGrid.style.display = px ? 'none' : '';
-  btnModePx.className   = px ? 'btn' : 'btn ghost';
-  btnModeGrid.className = px ? 'btn ghost' : 'btn';
+  panelPx.style.display    = px ? '' : 'none';
+  panelGrid.style.display  = px ? 'none' : '';
+  btnModePx.className      = px ? 'btn' : 'btn ghost';
+  btnModeGrid.className    = px ? 'btn ghost' : 'btn';
   updateCellInfo();
 }
 btnModePx.addEventListener('click',   () => setMode(true));
 btnModeGrid.addEventListener('click', () => setMode(false));
 
+// --- carregar imagem ---
 fileIn.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -225,48 +251,72 @@ fileIn.addEventListener('change', e => {
     img = im;
     imgInfo.textContent = `${im.naturalWidth} × ${im.naturalHeight} px — ${file.name}`;
     settingsCard.style.display = '';
+    // resetar offset ao trocar imagem
+    offsetX = 0; offsetY = 0;
+    offXIn.value = 0; offYIn.value = 0;
     updateCellInfo();
   };
   im.onerror = () => showStatus('Não foi possível carregar a imagem.', 'err');
   im.src = url;
 });
 
+// --- info dinâmica ---
 function updateCellInfo() {
   if (!img) return;
+  const ox = Math.max(0, parseInt(offXIn.value) || 0);
+  const oy = Math.max(0, parseInt(offYIn.value) || 0);
+  const availW = img.naturalWidth  - ox;
+  const availH = img.naturalHeight - oy;
   if (modePxActive) {
     const cw = Math.max(1, parseInt(cellWIn.value) || 64);
     const ch = Math.max(1, parseInt(cellHIn.value) || 64);
-    const c  = Math.floor(img.naturalWidth  / cw);
-    const r  = Math.floor(img.naturalHeight / ch);
-    cellInfo.textContent = `Grade calculada: ${c} col × ${r} lin  |  Total: ${c * r} quadros`;
+    const c  = Math.floor(availW / cw);
+    const r  = Math.floor(availH / ch);
+    cellInfo.textContent = `Grade a partir de (${ox},${oy}): ${c} col × ${r} lin  |  Total: ${c * r} quadros`;
   } else {
     const c  = Math.max(1, parseInt(colsIn.value) || 1);
     const r  = Math.max(1, parseInt(rowsIn.value) || 1);
-    const cw = Math.floor(img.naturalWidth  / c);
-    const ch = Math.floor(img.naturalHeight / r);
-    cellInfo.textContent = `Cada quadro: ${cw} × ${ch} px  |  Total: ${c * r} quadros`;
+    const cw = Math.floor(availW / c);
+    const ch = Math.floor(availH / r);
+    cellInfo.textContent = `Cada quadro: ${cw} × ${ch} px  |  Total: ${c * r} quadros (início: ${ox},${oy})`;
   }
 }
 
-[cellWIn, cellHIn, colsIn, rowsIn].forEach(el => el.addEventListener('input', updateCellInfo));
+[cellWIn, cellHIn, colsIn, rowsIn, offXIn, offYIn].forEach(el =>
+  el.addEventListener('input', updateCellInfo)
+);
 
+// --- resetar offset ---
+document.getElementById('resetOffset').addEventListener('click', () => {
+  offsetX = 0; offsetY = 0;
+  offXIn.value = 0; offYIn.value = 0;
+  updateCellInfo();
+  if (img && cols > 0 && cellW > 0) { drawPreview(); buildCells(); }
+});
+
+// --- aplicar grade ---
 applyBtn.addEventListener('click', () => {
   if (!img) return;
   zoom = parseFloat((modePxActive ? zoomSel : zoomSel2).value) || 1;
+  offsetX = Math.max(0, parseInt(offXIn.value) || 0);
+  offsetY = Math.max(0, parseInt(offYIn.value) || 0);
+
+  const availW = img.naturalWidth  - offsetX;
+  const availH = img.naturalHeight - offsetY;
 
   if (modePxActive) {
     cellW = Math.max(1, parseInt(cellWIn.value) || 64);
     cellH = Math.max(1, parseInt(cellHIn.value) || 64);
-    cols  = Math.floor(img.naturalWidth  / cellW);
-    rows  = Math.floor(img.naturalHeight / cellH);
+    cols  = Math.floor(availW / cellW);
+    rows  = Math.floor(availH / cellH);
   } else {
     cols  = Math.max(1, parseInt(colsIn.value) || 1);
     rows  = Math.max(1, parseInt(rowsIn.value) || 1);
-    cellW = img.naturalWidth  / cols;
-    cellH = img.naturalHeight / rows;
+    cellW = availW / cols;
+    cellH = availH / rows;
   }
 
-  if (cols < 1 || rows < 1) { showStatus('Tamanho de quadro maior que a imagem.', 'err'); return; }
+  if (cols < 1 || rows < 1) { showStatus('Offset muito grande ou quadro maior que a área disponível.', 'err'); return; }
 
   drawPreview();
   buildCells();
@@ -277,21 +327,59 @@ applyBtn.addEventListener('click', () => {
   status.style.display = 'none';
 });
 
+// --- zoom ---
 [zoomSel, zoomSel2].forEach(sel => sel.addEventListener('change', () => {
   zoom = parseFloat(sel.value);
-  if (img && cols > 0) drawPreview();
+  if (img && cols > 0 && cellW > 0) drawPreview();
 }));
 
+// --- clique na prévia para definir início ---
+clickCanvas.addEventListener('click', e => {
+  if (!img) return;
+  const rect = clickCanvas.getBoundingClientRect();
+  // converte coordenadas da tela para pixels da imagem
+  const ix = Math.max(0, Math.min(img.naturalWidth  - 1, Math.round((e.clientX - rect.left)  / zoom)));
+  const iy = Math.max(0, Math.min(img.naturalHeight - 1, Math.round((e.clientY - rect.top)   / zoom)));
+  offsetX = ix; offsetY = iy;
+  offXIn.value = ix; offYIn.value = iy;
+  updateCellInfo();
+
+  // reaplicar grade com novo offset se já estava calculada
+  if (cellW > 0 && cellH > 0) {
+    const availW = img.naturalWidth  - offsetX;
+    const availH = img.naturalHeight - offsetY;
+    if (modePxActive) {
+      cols = Math.floor(availW / cellW);
+      rows = Math.floor(availH / cellH);
+    } else {
+      cellW = availW / cols;
+      cellH = availH / rows;
+    }
+    if (cols >= 1 && rows >= 1) { drawPreview(); buildCells(); }
+  }
+});
+
+// mostrar coordenada ao passar o mouse
+clickCanvas.addEventListener('mousemove', e => {
+  if (!img) return;
+  const rect = clickCanvas.getBoundingClientRect();
+  const ix = Math.round((e.clientX - rect.left)  / zoom);
+  const iy = Math.round((e.clientY - rect.top)   / zoom);
+  offsetDisplay.textContent = `Mouse: (${ix}, ${iy}) px  |  Início atual: (${offsetX}, ${offsetY}) px`;
+});
+
+// --- desenhar prévia ---
 function drawPreview() {
-  const dw = Math.round(img.naturalWidth * zoom);
+  const dw = Math.round(img.naturalWidth  * zoom);
   const dh = Math.round(img.naturalHeight * zoom);
 
-  imgCanvas.width  = dw; imgCanvas.height = dh;
+  imgCanvas.width  = dw; imgCanvas.height  = dh;
   gridCanvas.width = dw; gridCanvas.height = dh;
+  clickCanvas.width = dw; clickCanvas.height = dh;
 
+  // imagem com checkerboard
   const ic = imgCanvas.getContext('2d');
   ic.clearRect(0, 0, dw, dh);
-  // checkerboard behind transparent areas
   for (let ty = 0; ty < Math.ceil(dh / 8); ty++)
     for (let tx = 0; tx < Math.ceil(dw / 8); tx++) {
       ic.fillStyle = (tx + ty) % 2 === 0 ? '#1a1638' : '#0d0c1c';
@@ -299,21 +387,28 @@ function drawPreview() {
     }
   ic.drawImage(img, 0, 0, dw, dh);
 
+  // grade + marcador de offset
   const gc = gridCanvas.getContext('2d');
   gc.clearRect(0, 0, dw, dh);
+
+  // área fora da grade (escurecida)
+  gc.fillStyle = 'rgba(0,0,0,0.35)';
+  if (offsetX > 0) gc.fillRect(0, 0, offsetX * zoom, dh);
+  if (offsetY > 0) gc.fillRect(0, 0, dw, offsetY * zoom);
+
+  // linhas da grade (a partir do offset)
   gc.strokeStyle = 'rgba(122,245,255,0.7)';
   gc.lineWidth = 1;
-
   for (let c = 0; c <= cols; c++) {
-    const x = Math.round(c * cellW * zoom);
-    gc.beginPath(); gc.moveTo(x, 0); gc.lineTo(x, dh); gc.stroke();
+    const x = Math.round(offsetX * zoom + c * cellW * zoom);
+    gc.beginPath(); gc.moveTo(x, offsetY * zoom); gc.lineTo(x, dh); gc.stroke();
   }
   for (let r = 0; r <= rows; r++) {
-    const y = Math.round(r * cellH * zoom);
-    gc.beginPath(); gc.moveTo(0, y); gc.lineTo(dw, y); gc.stroke();
+    const y = Math.round(offsetY * zoom + r * cellH * zoom);
+    gc.beginPath(); gc.moveTo(offsetX * zoom, y); gc.lineTo(dw, y); gc.stroke();
   }
 
-  // numbers
+  // números dos quadros
   gc.fillStyle = 'rgba(122,245,255,0.9)';
   gc.font = `bold ${Math.max(10, Math.round(Math.min(cellW, cellH) * zoom * 0.18))}px sans-serif`;
   gc.textBaseline = 'top';
@@ -321,11 +416,28 @@ function drawPreview() {
   let idx = 0;
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
-      gc.fillText(idx, Math.round(c * cellW * zoom) + 3, Math.round(r * cellH * zoom) + 2);
+      const x = Math.round(offsetX * zoom + c * cellW * zoom);
+      const y = Math.round(offsetY * zoom + r * cellH * zoom);
+      gc.fillText(idx, x + 3, y + 2);
       idx++;
     }
+
+  // marcador de ponto de início (crosshair laranja)
+  const ox = Math.round(offsetX * zoom);
+  const oy = Math.round(offsetY * zoom);
+  gc.strokeStyle = '#ffd27a';
+  gc.lineWidth = 2;
+  // linha horizontal
+  gc.beginPath(); gc.moveTo(Math.max(0, ox - 14), oy); gc.lineTo(ox + 14, oy); gc.stroke();
+  // linha vertical
+  gc.beginPath(); gc.moveTo(ox, Math.max(0, oy - 14)); gc.lineTo(ox, oy + 14); gc.stroke();
+  // círculo
+  gc.beginPath(); gc.arc(ox, oy, 5, 0, Math.PI * 2); gc.stroke();
+
+  offsetDisplay.textContent = `Início da grade: (${offsetX}, ${offsetY}) px`;
 }
 
+// --- montar células ---
 function buildCells() {
   thumbs = [];
   cellsGrid.innerHTML = '';
@@ -334,7 +446,8 @@ function buildCells() {
 
   for (let i = 0; i < total; i++) {
     const col = i % cols, row = Math.floor(i / cols);
-    const sx = col * cellW, sy = row * cellH;
+    const sx = offsetX + col * cellW;
+    const sy = offsetY + row * cellH;
 
     // miniatura
     const thumb = document.createElement('canvas');
@@ -350,30 +463,26 @@ function buildCells() {
     tc.drawImage(img, sx, sy, cellW, cellH, Math.round((52-dw)/2), Math.round((52-dh)/2), dw, dh);
     thumbs.push(thumb);
 
-    // dropdown de sugestões
+    // dropdown
     const sel = document.createElement('select');
     OBJ_NAMES.forEach(n => {
       const o = document.createElement('option');
       o.value = n; o.textContent = n;
       sel.appendChild(o);
     });
-    // opção "nome personalizado"
     const optCustom = document.createElement('option');
     optCustom.value = '__custom__'; optCustom.textContent = '✏️ Nome personalizado…';
     sel.appendChild(optCustom);
 
-    // auto-sugestão pelos primeiros índices
     const autoNames = ['obj_tree','obj_tree2','obj_tree_dead','obj_rock','obj_rock2',
       'obj_bush','obj_stump','obj_grass_t','obj_flower','obj_campfire','obj_barrel','obj_crystal'];
     if (i < autoNames.length) sel.value = autoNames[i];
 
-    // campo de texto livre (aparece ao escolher "personalizado")
     const customIn = document.createElement('input');
     customIn.type = 'text';
     customIn.className = 'cell-custom';
     customIn.placeholder = 'Ex: rock_b  ou  obj_rock_b';
 
-    // prévia do nome final
     const preview = document.createElement('div');
     preview.className = 'cell-preview-name';
 
@@ -385,12 +494,8 @@ function buildCells() {
     }
 
     sel.addEventListener('change', () => {
-      if (sel.value === '__custom__') {
-        customIn.classList.add('show');
-        customIn.focus();
-      } else {
-        customIn.classList.remove('show');
-      }
+      customIn.classList.toggle('show', sel.value === '__custom__');
+      if (sel.value === '__custom__') customIn.focus();
       updatePreview();
     });
     customIn.addEventListener('input', updatePreview);
@@ -415,7 +520,7 @@ function buildCells() {
   }
 }
 
-// retorna o nome final de um cell-item (sem extensão, com prefixo obj_)
+// --- extração ---
 function getCellName(item) {
   const sel = item.querySelector('select');
   const customIn = item.querySelector('.cell-custom');
@@ -426,7 +531,8 @@ function getCellName(item) {
 
 function extractCell(idx) {
   const col = idx % cols, row = Math.floor(idx / cols);
-  const sx = col * cellW, sy = row * cellH;
+  const sx = offsetX + col * cellW;
+  const sy = offsetY + row * cellH;
   const oc = document.createElement('canvas');
   oc.width = Math.ceil(cellW); oc.height = Math.ceil(cellH);
   oc.getContext('2d').drawImage(img, sx, sy, cellW, cellH, 0, 0, cellW, cellH);
@@ -455,11 +561,10 @@ document.getElementById('downloadAll').addEventListener('click', async () => {
     downloadCanvas(canvas, name + '.png');
     count++;
   }
-  if (count === 0) {
-    showStatus('Nenhum objeto nomeado. Preencha os nomes antes de baixar.', 'err');
-  } else {
-    showStatus(`✔ ${count} arquivo(s) baixando. Salve na pasta Img/ do jogo.`, 'ok');
-  }
+  showStatus(count === 0
+    ? 'Nenhum objeto nomeado. Preencha os nomes antes de baixar.'
+    : `✔ ${count} arquivo(s) baixando. Salve na pasta Img/ do jogo.`,
+    count === 0 ? 'err' : 'ok');
 });
 
 document.getElementById('downloadOne').addEventListener('click', () => {
@@ -467,8 +572,7 @@ document.getElementById('downloadOne').addEventListener('click', () => {
   for (const item of items) {
     const name = getCellName(item);
     if (!name) continue;
-    const idx = parseInt(item.dataset.idx);
-    downloadCanvas(extractCell(idx), name + '.png');
+    downloadCanvas(extractCell(parseInt(item.dataset.idx)), name + '.png');
     showStatus(`✔ Baixando "${name}.png".`, 'ok');
     return;
   }

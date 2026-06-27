@@ -819,6 +819,9 @@ function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 //    abilities    array   nomes de habilidades exibidos
 //    ult          object  {id,name,icon,cd,desc}
 //    passive      string  texto da passiva
+//    dr           number  raio visual do sprite em px (padrão = P.r=14).
+//                          Aumentar dr faz o sprite maior sem alterar a hitbox.
+//                          Ex: dr:28 → sprite 56×56 px, hitbox continua 14.
 //    unlockCost   number  custo em ouro p/ desbloquear (0 = grátis)
 //    isLocked     bool     estado PADRÃO de bloqueio (sobrescrito pelo save)
 //    init(P)      func     aplica a passiva ao jogador ao iniciar a partida
@@ -832,7 +835,7 @@ const RARITIES={
 //  As 6 classes do GDD. Os ids são preservados (compat. de saves/desbloqueio);
 //  só a identidade, atributos e a habilidade (ult) mudam.
 const CLASSES=[
-  {id:'mage',icon:'🔥',name:'Mago',desc:'Pouca vida, muito dano em área.',color:'#ff7a3a',start:'bolt',
+  {id:'mage',icon:'🔥',name:'Mago',desc:'Pouca vida, muito dano em área.',start:'bolt',img:'Img/mago.png',dr:20,
     rarity:'common', startLevel:1, unlockCost:0, isLocked:false,
     attrs:{hp:80, speed:3.0, attack:22, defense:3},
     abilities:['Raio Arcano','Bola de Fogo'],
@@ -883,7 +886,7 @@ const CLASSES=[
           bullets.push({knife:true,x:P.x,y:P.y,vx:Math.cos(a)*12,vy:Math.sin(a)*12,r:5,dmg:16,life:0.9,pierce:2,c:'#7bbf5a',type:'knife',a}); } }},
     passive:'25% de esquiva', stats:'❤️95 · 🗡️ Facas',
     init:P=>{ P.dodge=0.25; }},
-  {id:'barbarian',icon:'🪓',name:'Guerreiro',desc:'Muita vida e golpes amplos.',color:'#ff8a5a',start:'whip',img:'Img/Barbaro.png',
+  {id:'barbarian',icon:'🪓',name:'Guerreiro',desc:'Muita vida e golpes amplos.',color:'#ff8a5a',start:'whip',img:'Img/mago.png',
     rarity:'rare', startLevel:1, isLocked:false,
     attrs:{hp:180, speed:2.7, attack:18, defense:12},
     abilities:['Chicote','Giro Cortante'],
@@ -1050,29 +1053,36 @@ const WEAPONS={
 //    minTime  number   segundos de jogo até começar a surgir (0 = desde o início)
 //    weight   number   peso relativo de spawn entre os elegíveis
 // =====================================================================
+// ---------- Catálogo de inimigos ----------
+//  r   : raio de colisão (hitbox)
+//  dr  : raio de exibição (tamanho visual do sprite). Opcional — padrão = r.
+//         Use dr > r para sprites maiores que a hitbox (ex: chefes com arte grande).
+//  img : caminho da imagem (padrão: Img/enemy_<id>.png). Sem imagem → usa emoji.
+//  c   : cor do glow e fallback (usado no emoji e na barra de vida).
 const ENEMIES=[
   // --- comuns (qualquer mapa) ---
-  {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
-  {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
-  {id:'fast',  name:'Veloz',      icon:'🦂', c:'#ffd27a', r:9,  hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
-  {id:'tank',  name:'Brutamonte', icon:'🐗', c:'#c08bff', r:20, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
-  {id:'ghost', name:'Espectro',   icon:'👻', c:'#aaeeff', r:10, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
+  {id:'Zombie', name:'Zombi', img:'Img/enemy_Zombie.png', icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
+  {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
+  {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  dr:13, hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
+  {id:'fast',  name:'Veloz',      icon:'🦂', c:'#ffd27a', r:9,  dr:17, hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
+  {id:'tank',  name:'Brutamonte', icon:'🐗', c:'#c08bff', r:20, dr:34, hp:55, spd:0.7, dmg:16, xp:3, gold:3, minTime:120, weight:15},
+  {id:'ghost', name:'Espectro',   icon:'👻', c:'#aaeeff', r:10, dr:20, hp:20, spd:1.8, dmg:10, xp:2, gold:2, minTime:60,  weight:10},
   // --- exclusivos: Terras Cinzentas (fogo) ---
-  {id:'imp',   name:'Diabrete',   icon:'👺', c:'#ff5a2a', r:11, hp:18, spd:1.9, dmg:11, xp:2, gold:2, minTime:0,   weight:28},
-  {id:'magma', name:'Colosso de Magma', icon:'🌋', c:'#ff7a2a', r:24, hp:80, spd:0.6, dmg:22, xp:5, gold:5, minTime:90, weight:14},
+  {id:'imp',   name:'Diabrete',   icon:'👺', c:'#ff5a2a', r:11, dr:20, hp:18, spd:1.9, dmg:11, xp:2, gold:2, minTime:0,   weight:28},
+  {id:'magma', name:'Colosso de Magma', icon:'🌋', c:'#ff7a2a', r:24, dr:42, hp:80, spd:0.6, dmg:22, xp:5, gold:5, minTime:90, weight:14},
   // --- exclusivos: Pico Gélido (gelo) ---
-  {id:'wraith',name:'Alma Gélida',icon:'🥶', c:'#7af5ff', r:10, hp:24, spd:2.0, dmg:12, xp:2, gold:2, minTime:0,   weight:26},
-  {id:'golem', name:'Golem de Gelo', icon:'🧊', c:'#aee4ff', r:23, hp:95, spd:0.65,dmg:24, xp:6, gold:6, minTime:90, weight:14},
+  {id:'wraith',name:'Alma Gélida',icon:'🥶', c:'#7af5ff', r:10, dr:20, hp:24, spd:2.0, dmg:12, xp:2, gold:2, minTime:0,   weight:26},
+  {id:'golem', name:'Golem de Gelo', icon:'🧊', c:'#aee4ff', r:23, dr:40, hp:95, spd:0.65,dmg:24, xp:6, gold:6, minTime:90, weight:14},
 ];
 
 // ---------- Chefes (configuráveis; aparecem por tempo, não por peso) ----------
 //  Mesmos campos dos inimigos + boss:true. `warn` é o aviso exibido ao surgir.
 const BOSSES=[
-  {id:'void', name:'Chefe do Vazio', icon:'💀', c:'#ff4da6', r:38, hp:600, spd:1.0, dmg:30, xp:40, gold:40,
+  {id:'void', name:'Chefe do Vazio', icon:'💀', c:'#ff4da6', r:38, dr:72, hp:600, spd:1.0, dmg:30, xp:40, gold:40,
     boss:true, warn:'⚠️ CHEFE DO VAZIO!'},
-  {id:'ember', name:'Senhor das Brasas', icon:'🔥', c:'#ff7a2a', r:40, hp:720, spd:1.1, dmg:32, xp:48, gold:48,
+  {id:'ember', name:'Senhor das Brasas', icon:'🔥', c:'#ff7a2a', r:40, dr:76, hp:720, spd:1.1, dmg:32, xp:48, gold:48,
     boss:true, warn:'⚠️ SENHOR DAS BRASAS!'},
-  {id:'frost', name:'Rainha do Gelo', icon:'❄️', c:'#7af5ff', r:42, hp:780, spd:0.9, dmg:34, xp:52, gold:52,
+  {id:'frost', name:'Rainha do Gelo', icon:'❄️', c:'#7af5ff', r:42, dr:80, hp:780, spd:0.9, dmg:34, xp:52, gold:52,
     boss:true, warn:'⚠️ RAINHA DO GELO!'},
 ];
 
@@ -1217,7 +1227,7 @@ const MAPS=[
   {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
     biome:'venom', ground:'grama', stars:1, diffMul:1, unlockCost:0, isLocked:false,
     objects:['pedra','tree','tree2','pedra4','arbusto','arbusto1','stump','grass_t','flower','barrel'],
-    enemies:['grunt','swarm','fast'], bosses:['void']},
+    enemies:['Zombie'], bosses:['void']},
   {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
     biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
     objects:['tree_dead','rock','campfire','barrel','crystal'],
@@ -1344,7 +1354,7 @@ function pickEnemyType(){
 //  scaleSpd=true aplica o leve aumento de velocidade por dificuldade (inimigos comuns).
 function makeEnemy(t,ang,R,diff,scaleSpd,extra){
   return Object.assign({
-    x:P.x+Math.cos(ang)*R, y:P.y+Math.sin(ang)*R, r:t.r, c:t.c, id:t.id, icon:t.icon,
+    x:P.x+Math.cos(ang)*R, y:P.y+Math.sin(ang)*R, r:t.r, c:t.c, id:t.id, icon:t.icon, t,
     hp:t.hp*diff, maxhp:t.hp*diff,
     spd:scaleSpd ? t.spd*(0.9+diff*0.05) : t.spd,
     dmg:t.dmg*(scaleSpd?Math.max(1,diff*0.6):1), xp:t.xp, gold:t.gold, hit:0, kb:{x:0,y:0}, freeze:0
@@ -2550,7 +2560,15 @@ function drawPets(){
   for(const pt of P.pets){
     if(pt.slash){ cx.strokeStyle=pt.def.color; cx.globalAlpha=clamp(pt.slash.t*5,0,1); cx.lineWidth=3;
       cx.beginPath();cx.arc(pt.slash.x,pt.slash.y,16,0,TAU);cx.stroke();cx.globalAlpha=1;cx.lineWidth=1; }
-    const y=pt.y+(pt.bob||0);
+    const bobOff=pt.bob||0;
+    const y=pt.y+bobOff;
+    // sombra nos pés do pet (base = pt.y + 11)
+    const psha=1-Math.abs(bobOff)/4*0.3;
+    cx.save();
+    cx.globalAlpha=0.28*psha; cx.fillStyle='#000';
+    cx.beginPath();cx.ellipse(pt.x,pt.y+11,11*1.0*psha,11*0.25*psha,0,0,TAU);cx.fill();
+    cx.globalAlpha=1;
+    cx.restore();
     cx.save();
     cx.shadowColor=pt.def.color; cx.shadowBlur=10;
     cx.globalAlpha=0.25; cx.fillStyle=pt.def.color;
@@ -2578,7 +2596,13 @@ function updateMinions(dt){
   minions=minions.filter(m=>m.life>0);
 }
 function drawMinions(){
-  for(const m of minions){ const y=m.y+Math.sin(m.bob)*2, fade=clamp(m.life,0,1);
+  for(const m of minions){ const bobOff=Math.sin(m.bob)*2, y=m.y+bobOff, fade=clamp(m.life,0,1);
+    // sombra nos pés do minion (base = m.y + 9)
+    const msha=1-Math.abs(bobOff)/2*0.3;
+    cx.save();
+    cx.globalAlpha=0.25*msha*fade; cx.fillStyle='#000';
+    cx.beginPath();cx.ellipse(m.x,m.y+9,9*1.0*msha,9*0.25*msha,0,0,TAU);cx.fill();
+    cx.restore();
     cx.save(); cx.globalAlpha=fade;
     cx.shadowColor='#c08bff'; cx.shadowBlur=8; cx.fillStyle='rgba(200,139,255,.3)';
     cx.beginPath();cx.arc(m.x,y,9,0,TAU);cx.fill(); cx.shadowBlur=0;
@@ -2881,22 +2905,53 @@ function render(){
     cx.restore(); }
 
   for(const e of enemies){
-    cx.save();
-    cx.fillStyle=e.freeze>0?'#9ad8ff':(e.hit>0?'#fff':e.c);
-    cx.shadowColor=e.c;cx.shadowBlur=e.boss?20:6;
-    cx.beginPath();cx.arc(e.x,e.y,e.r,0,TAU);cx.fill();
+    // bob + squash/stretch por inimigo (fase varia por posição → cada um num passo diferente)
+    const eph=gameTime*9+e.x*0.05;
+    const emov=e.freeze<=0;
+    const ebob=emov?Math.abs(Math.sin(eph))*-3:0;        // até 3px pra cima
+    const esq =emov?Math.max(0,Math.cos(eph*2))*0.04:0;  // squash no chão
+
+    const dr=e.t?.dr??e.r;  // raio visual (dr) separado do raio de colisão (r)
     const eimg=enemyImages[e.id];
+
+    // sombra nos pés — calcula altura real da imagem para achar a base do sprite
+    { const dw=dr*2;
+      const dh=(eimg&&eimg.complete&&eimg.naturalWidth)?dw*(eimg.naturalHeight/eimg.naturalWidth):dw;
+      const feetY=e.y+dh/2;  // base real do sprite (centro + metade da altura)
+      const esha=1-Math.abs(ebob)/3*0.25;
+      cx.save();
+      cx.globalAlpha=0.28*esha; cx.fillStyle='#000';
+      cx.beginPath();
+      cx.ellipse(e.x, feetY, dr*0.85*esha, dr*0.2*esha, 0, 0, TAU);
+      cx.fill();
+      cx.globalAlpha=1;
+      cx.restore();
+    }
+    cx.save();
+    cx.translate(e.x, e.y+ebob);
+    cx.scale(1+esq, 1-esq);
     if(eimg&&eimg.complete&&eimg.naturalWidth){
+      // glow sutil no sprite (sem círculo preenchido)
+      cx.shadowColor=e.c; cx.shadowBlur=e.boss?18:5;
+      const dw=dr*2, dh=dw*(eimg.naturalHeight/eimg.naturalWidth);
+      cx.drawImage(eimg,-dw/2,-dh/2,dw,dh);
       cx.shadowBlur=0;
-      cx.beginPath();cx.arc(e.x,e.y,e.r,0,TAU);cx.clip();
-      cx.drawImage(eimg,e.x-e.r,e.y-e.r,e.r*2,e.r*2);
-    } else if(e.icon&&e.hit<=0&&e.freeze<=0){
-      cx.shadowBlur=0;cx.font=Math.round(e.r*1.6)+'px sans-serif';
-      cx.textAlign='center';cx.textBaseline='middle';cx.fillText(e.icon,e.x,e.y+1);
+      // overlay de hit (branco) ou freeze (azul) sobre o sprite
+      if(e.hit>0||e.freeze>0){
+        cx.globalAlpha=e.hit>0?0.5:0.35;
+        cx.fillStyle=e.freeze>0?'#9ad8ff':'#ffffff';
+        cx.fillRect(-dw/2,-dh/2,dw,dh);
+        cx.globalAlpha=1;
+      }
+    } else {
+      cx.font=Math.round(dr*1.6)+'px sans-serif';
+      cx.textAlign='center';cx.textBaseline='middle';
+      cx.fillStyle=e.freeze>0?'#9ad8ff':(e.hit>0?'#fff':e.c);
+      cx.fillText(e.icon,0,1);
     }
     cx.restore();
-    if(e.maxhp>30){cx.fillStyle='#000';cx.fillRect(e.x-e.r,e.y-e.r-7,e.r*2,4);
-      cx.fillStyle='#ff5a7a';cx.fillRect(e.x-e.r,e.y-e.r-7,e.r*2*clamp(e.hp/e.maxhp,0,1),4);}
+    if(e.maxhp>30){const bw=dr*2;cx.fillStyle='#000';cx.fillRect(e.x-bw/2,e.y-dr-7+ebob,bw,4);
+      cx.fillStyle='#ff5a7a';cx.fillRect(e.x-bw/2,e.y-dr-7+ebob,bw*clamp(e.hp/e.maxhp,0,1),4);}
   }
 
   for(const b of bullets){
@@ -2928,9 +2983,12 @@ function render(){
     if(p.ring){cx.strokeStyle=p.c;cx.globalAlpha=p.t*2;cx.lineWidth=3;cx.beginPath();cx.arc(p.x,p.y,p.r,0,TAU);cx.stroke();cx.globalAlpha=1;cx.lineWidth=1;continue;}
     cx.globalAlpha=clamp(p.t*2,0,1);cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.r,0,TAU);cx.fill();cx.globalAlpha=1;}
 
-  // player HP/stamina bar above sprite (mirrors enemy bar style)
-  {
-    const bw=46, bh=5, by=P.y-P.r-18;
+  // player HP/stamina bar — posicionada acima do sprite visual (usa pdr)
+  { const pdr0=P.cls.dr??P.r;
+    const cimg0=charImages[P.cls.id];
+    const pdh0=(cimg0&&cimg0.complete&&cimg0.naturalWidth)
+      ? pdr0*2*(cimg0.naturalHeight/cimg0.naturalWidth) : pdr0*2;
+    const bw=46, bh=5, by=P.y - pdh0/2 - 18;
     cx.fillStyle='rgba(0,0,0,.55)'; cx.fillRect(P.x-bw/2-2,by-2,bw+4,bh*2+5);
     cx.fillStyle='#3ddc4a'; cx.fillRect(P.x-bw/2,by,bw*clamp(P.hp/P.maxhp,0,1),bh);
     const stam=clamp(1-(P.dashCd/P.dashMax),0,1);
@@ -2939,23 +2997,47 @@ function render(){
     cx.fillText(Math.ceil(clamp(P.hp,0,P.maxhp)),P.x,by-3);
   }
 
+  // bob + squash/stretch do player (só p/ arte estática; sprite sheet tem animação própria)
+  const wph=P.animT*9;
+  const usesBob=P.moving&&!P.cls.sprite;
+  const pbob=usesBob?Math.abs(Math.sin(wph))*-4:0;      // até 4px pra cima
+  const psq =usesBob?Math.max(0,Math.cos(wph*2))*0.05:0; // squash no chão
+
+  // raio visual do player: cls.dr se definido, senão P.r (hitbox)
+  const pdr = P.cls.dr ?? P.r;
+
+  // sombra nos pés (usa pdr para tamanho, P.r como âncora da base)
+  { const psha=1-Math.abs(pbob)/4*0.3;
+    cx.save();
+    cx.globalAlpha=0.35*psha;
+    cx.fillStyle='#000';
+    cx.beginPath();
+    cx.ellipse(P.x, P.y+P.r, pdr*1.0*psha, pdr*0.25*psha, 0, 0, TAU);
+    cx.fill();
+    cx.globalAlpha=1;
+    cx.restore(); }
+
   cx.save();
   if(P.invuln>0&&Math.floor(P.invuln*20)%2)cx.globalAlpha=0.5;
   const cimg=charImages[P.cls.id];
-  if(!P.cls.sprite){                          // disco colorido só p/ arte estática (sprite tem fundo transparente)
-    cx.fillStyle=P.color;cx.shadowColor=P.color;cx.shadowBlur=18;
-    cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.fill();
-  }
   if(cimg&&cimg.complete&&cimg.naturalWidth){
     cx.shadowBlur=0;
     if(P.cls.sprite){                        // personagem animado: quadro da folha de sprites
-      drawCharSprite(cx,P.cls.sprite,cimg,P.x,P.y,P.r*2.7, P.moving?'walk':'idle', P.animT, P.facing.x<0);
-    } else {                                 // personagem estático: arte única recortada em círculo
-      cx.beginPath();cx.arc(P.x,P.y,P.r,0,TAU);cx.clip();
-      cx.drawImage(cimg,P.x-P.r,P.y-P.r,P.r*2,P.r*2);
+      drawCharSprite(cx,P.cls.sprite,cimg,P.x,P.y,pdr*2, P.moving?'walk':'idle', P.animT, P.facing.x<0);
+    } else {                                 // personagem estático: sprite livre (sem clip circular)
+      cx.save();
+      cx.translate(P.x, P.y+pbob);
+      cx.scale(1+psq, 1-psq);
+      const pdw=pdr*2, pdh=pdw*(cimg.naturalHeight/cimg.naturalWidth);
+      cx.drawImage(cimg,-pdw/2,-pdh/2,pdw,pdh);
+      cx.restore();
     }
   } else {
-    cx.font='16px sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(P.cls.icon,P.x,P.y+1);
+    // fallback: disco colorido + emoji
+    cx.fillStyle=P.color;cx.shadowColor=P.color;cx.shadowBlur=18;
+    cx.beginPath();cx.arc(P.x,P.y+pbob,P.r*(1+psq),0,TAU);cx.fill();cx.shadowBlur=0;
+    cx.font='16px sans-serif';cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillText(P.cls.icon,P.x,P.y+pbob+1);
   }
   cx.restore();cx.shadowBlur=0;
 
