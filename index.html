@@ -399,6 +399,52 @@
     .lb-play{ grid-column:1; }
     .lb-panel{ grid-column:2; }
   }
+
+  /* ---- Splash / Login screen ---- */
+  #splash {
+    background:
+      radial-gradient(ellipse at 50% 20%, rgba(80,50,180,.45) 0%, transparent 65%),
+      radial-gradient(ellipse at 50% 80%, rgba(20,10,60,.7) 0%, transparent 70%),
+      linear-gradient(180deg,#07081a 0%,#05060e 100%);
+    gap:0;
+  }
+  .splash-icon {
+    width:clamp(96px,22vw,148px); height:clamp(96px,22vw,148px);
+    border-radius:28px; overflow:hidden;
+    border:3px solid rgba(180,140,255,.45);
+    box-shadow:0 0 40px rgba(120,80,255,.55), 0 0 80px rgba(80,40,200,.25);
+    margin-bottom:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#1a1248,#0b0820);
+    animation:splashIconPulse 3s ease-in-out infinite;
+  }
+  .splash-icon img { width:100%; height:100%; object-fit:cover; display:block; }
+  .splash-icon .si-emoji { font-size:clamp(56px,14vw,88px); line-height:1; }
+  @keyframes splashIconPulse {
+    0%,100%{ box-shadow:0 0 40px rgba(120,80,255,.55),0 0 80px rgba(80,40,200,.25); }
+    50%    { box-shadow:0 0 60px rgba(140,100,255,.8),0 0 110px rgba(100,60,220,.45); }
+  }
+  .splash-title {
+    font-size:clamp(30px,8.5vw,64px); font-weight:900; letter-spacing:2px; line-height:1.05;
+    background:linear-gradient(90deg,#7af5ff 0%,#b388ff 50%,#ff7ad9 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:none; margin:16px 0 6px; text-align:center;
+  }
+  .splash-sub {
+    font-size:clamp(11px,3vw,14px); color:#6a6f92; letter-spacing:3px;
+    text-transform:uppercase; margin-bottom:36px; text-align:center;
+  }
+  .splash-enter {
+    margin-top:8px; padding:18px 60px; font-size:clamp(18px,5vw,22px);
+    background:linear-gradient(90deg,#7af5ff,#b388ff);
+    border:none; border-radius:32px; cursor:pointer; font-weight:900;
+    color:#0a0a14; letter-spacing:3px;
+    box-shadow:0 6px 30px rgba(140,100,255,.5);
+    transition:transform .12s, box-shadow .12s;
+    touch-action:manipulation;
+  }
+  .splash-enter:active { transform:scale(.95); }
+  .splash-version { position:absolute; bottom:max(14px,env(safe-area-inset-bottom)); font-size:10px; color:#2a2f50; }
 </style>
 </head>
 <body>
@@ -448,6 +494,18 @@
 
 <!-- Joystick -->
 <div id="joy"><div id="joyBase"><span class="jtick n"></span><span class="jtick e"></span><span class="jtick s"></span><span class="jtick w"></span></div><div id="joyKnob"></div></div>
+
+<!-- SPLASH / LOGIN -->
+<div class="screen" id="splash">
+  <div class="splash-icon">
+    <img src="icons/icon-512.png" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <span class="si-emoji" style="display:none">⚔️</span>
+  </div>
+  <div class="splash-title">Crônicas do Vazio</div>
+  <div class="splash-sub">Survive the Darkness</div>
+  <button class="splash-enter" id="splashBtn">ENTRAR</button>
+  <span class="splash-version">v1.0</span>
+</div>
 
 <!-- MAIN MENU (LOBBY) -->
 <div class="screen lobby" id="menu">
@@ -705,7 +763,7 @@ function seedToStr(s){ return (s>>>0).toString(36).toUpperCase().padStart(7,'0')
 function strToSeed(str){ let h=2166136261>>>0; for(const ch of String(str)){ h=Math.imul(h^ch.charCodeAt(0),16777619); } return h>>>0; }
 
 // ---------- Screen manager ----------
-const SCREENS=['menu','how','select','mapselect','pets','inv','forge','shop','missions','achv','talents','levelup','pause','gameover','profile'];
+const SCREENS=['splash','menu','how','select','mapselect','pets','inv','forge','shop','missions','achv','talents','levelup','pause','gameover','profile'];
 function show(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden', s!==id)); }
 function hideAllScreens(){ SCREENS.forEach(s=>$(s).classList.add('hidden')); }
 
@@ -1966,6 +2024,7 @@ $('lbPlay').onclick=()=>{
 };
 $('lbPrev').onclick=()=>{ lobbyIdx=(lobbyIdx-1+CLASSES.length)%CLASSES.length; renderLobby(); };
 $('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); };
+$('splashBtn').onclick=()=>{ renderLobby(); show('menu'); };
 
 // ---------- Perfil (nome + foto) ----------
 // Lista de avatares. Para usar imagem própria, troque { icon:'…' } por
@@ -2898,7 +2957,7 @@ function drawGrid(){
 { const s=new URLSearchParams(location.search).get('seed');
   if(s) pendingSeed = /^\d+$/.test(s) ? (s>>>0) : strToSeed(s); }
 
-show('menu');
+show('splash');
 
 // ---------- PWA: registra o service worker (offline + instalável) ----------
 if ('serviceWorker' in navigator) {
