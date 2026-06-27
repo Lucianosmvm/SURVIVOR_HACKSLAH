@@ -476,6 +476,9 @@
     opacity:0;
     animation:splashFadeUp .4s ease-out 1.45s forwards;
   }
+  #loadWrap { transition:opacity .3s; }
+  #loadWrap.done { opacity:0; pointer-events:none; }
+  #splashBtn:not([disabled]) { animation:splashFadeUp .35s ease-out forwards, splashBtnPulse 2s ease-in-out .4s infinite; }
 </style>
 </head>
 <body>
@@ -534,7 +537,13 @@
   </div>
   <div class="splash-title">Crônicas do Vazio</div>
   <div class="splash-sub">Survive the Darkness</div>
-  <button class="splash-enter" id="splashBtn">ENTRAR</button>
+  <div id="loadWrap" style="width:min(260px,70vw);margin-bottom:20px">
+    <div style="font-size:11px;color:#6a6f92;text-align:center;margin-bottom:6px" id="loadTxt">Carregando...</div>
+    <div style="height:6px;background:#1a1638;border-radius:4px;overflow:hidden;border:1px solid #2a2750">
+      <div id="loadBar" style="height:100%;width:0%;background:linear-gradient(90deg,#7af5ff,#b388ff);transition:width .15s"></div>
+    </div>
+  </div>
+  <button class="splash-enter" id="splashBtn" disabled style="opacity:.4;cursor:default">ENTRAR</button>
   <span class="splash-version">v1.0</span>
 </div>
 
@@ -933,6 +942,42 @@ function loadCharImages(){
     if(data){ const im=new Image(); im.src=data; charImages[c.id]=im; } });
 }
 loadCharImages();
+
+// ---------- Pré-carregamento com progresso no splash ----------
+function preloadImages(urls){
+  return new Promise(resolve=>{
+    const total=urls.length; if(!total){ resolve(); return; }
+    let done=0;
+    const bar=document.getElementById('loadBar');
+    const txt=document.getElementById('loadTxt');
+    function tick(){
+      done++;
+      const pct=Math.round(done/total*100);
+      if(bar) bar.style.width=pct+'%';
+      if(txt) txt.textContent=`Carregando... ${pct}%`;
+      if(done>=total) resolve();
+    }
+    urls.forEach(src=>{
+      const im=new Image();
+      im.onload=im.onerror=tick;
+      im.src=src;
+    });
+  });
+}
+
+function collectAllImageUrls(){
+  const urls=new Set();
+  // personagens
+  CLASSES.forEach(c=>{ if(c.img) urls.add(c.img); });
+  // inimigos e chefes
+  ;[...ENEMIES,...BOSSES].forEach(t=>{ if(t.img) urls.add(t.img); });
+  // objetos do mundo
+  WORLD_OBJECTS.forEach(t=>{ if(t.img) urls.add(t.img); });
+  urls.add('Img/obj_rock2.png');
+  // ícone do splash
+  urls.add('icons/icon-512.png');
+  return [...urls];
+}
 
 // ---------- Spritesheet animation ----------
 // Personagens com `sprite` no CLASSES usam folha de sprites animada.
@@ -2067,6 +2112,14 @@ $('lbPrev').onclick=()=>{ lobbyIdx=(lobbyIdx-1+CLASSES.length)%CLASSES.length; r
 $('lbNext').onclick=()=>{ lobbyIdx=(lobbyIdx+1)%CLASSES.length; renderLobby(); };
 $('splashBtn').onclick=()=>{ renderLobby(); show('menu'); };
 
+// inicia o pré-carregamento assim que o script executa
+preloadImages(collectAllImageUrls()).then(()=>{
+  const btn=document.getElementById('splashBtn');
+  const wrap=document.getElementById('loadWrap');
+  if(wrap) wrap.classList.add('done');
+  if(btn){ btn.disabled=false; btn.style.opacity=''; btn.style.cursor=''; }
+});
+
 // ---------- Perfil (nome + foto) ----------
 // Lista de avatares. Para usar imagem própria, troque { icon:'…' } por
 // { img:'Img/seu_arquivo.png' } no item correspondente. Mantenha o 'id'.
@@ -2548,6 +2601,7 @@ function updatePets(dt){
     // âncora de órbita ao redor do jogador (segue com leve atraso)
     const ang=gameTime*1.6 + i*(TAU/n);
     const ax=P.x+Math.cos(ang)*52, ay=P.y+Math.sin(ang)*52;
+    if(Math.abs(ax-pt.x)>0.5) pt.facingLeft = ax < pt.x;
     pt.x+=(ax-pt.x)*0.12; pt.y+=(ay-pt.y)*0.12;
     pt.bob=Math.sin(gameTime*6+i)*3;
     pt.cd-=dt;
@@ -2569,15 +2623,18 @@ function drawPets(){
     cx.beginPath();cx.ellipse(pt.x,pt.y+11,11*1.0*psha,11*0.25*psha,0,0,TAU);cx.fill();
     cx.globalAlpha=1;
     cx.restore();
+    const ptDir = pt.facingLeft ? -1 : 1;
     cx.save();
+    cx.translate(pt.x, y);
+    cx.scale(ptDir, 1);
     cx.shadowColor=pt.def.color; cx.shadowBlur=10;
     cx.globalAlpha=0.25; cx.fillStyle=pt.def.color;
-    cx.beginPath();cx.arc(pt.x,y,11,0,TAU);cx.fill();
+    cx.beginPath();cx.arc(0,0,11,0,TAU);cx.fill();
     cx.globalAlpha=1; cx.shadowBlur=0;
     cx.font='18px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
-    cx.fillText(pt.def.icon,pt.x,y);
-    if(pt.level>1){ cx.font='bold 9px Trebuchet MS'; cx.fillStyle='#fff';
-      cx.fillText('lv'+pt.level,pt.x,y+15); }
+    cx.fillText(pt.def.icon,0,0);
+    if(pt.level>1){ cx.scale(ptDir,1); cx.font='bold 9px Trebuchet MS'; cx.fillStyle='#fff';
+      cx.fillText('lv'+pt.level,0,15); }
     cx.restore();
   }
 }
@@ -2589,6 +2646,7 @@ function updateMinions(dt){
     const tg=nearestEnemies(1)[0];
     if(tg){ const a=Math.atan2(tg.y-m.y,tg.x-m.x);
       m.x+=Math.cos(a)*2.6*60*dt; m.y+=Math.sin(a)*2.6*60*dt;
+      if(Math.abs(tg.x-m.x)>1) m.facingLeft = tg.x < m.x;
       const rr=tg.r+10;
       if(dist2(m,tg)<rr*rr && m.cd<=0){ m.cd=0.5; damageEnemy(tg,8+P.level*0.5,tg.x-m.x,tg.y-m.y); }
     }
@@ -2603,10 +2661,12 @@ function drawMinions(){
     cx.globalAlpha=0.25*msha*fade; cx.fillStyle='#000';
     cx.beginPath();cx.ellipse(m.x,m.y+9,9*1.0*msha,9*0.25*msha,0,0,TAU);cx.fill();
     cx.restore();
+    const mfaceDir = m.facingLeft ? -1 : 1;
     cx.save(); cx.globalAlpha=fade;
+    cx.translate(m.x, y); cx.scale(mfaceDir, 1);
     cx.shadowColor='#c08bff'; cx.shadowBlur=8; cx.fillStyle='rgba(200,139,255,.3)';
-    cx.beginPath();cx.arc(m.x,y,9,0,TAU);cx.fill(); cx.shadowBlur=0;
-    cx.font='16px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('💀',m.x,y);
+    cx.beginPath();cx.arc(0,0,9,0,TAU);cx.fill(); cx.shadowBlur=0;
+    cx.font='16px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle'; cx.fillText('💀',0,0);
     cx.restore();
   }
   cx.globalAlpha=1;
@@ -2927,9 +2987,10 @@ function render(){
       cx.globalAlpha=1;
       cx.restore();
     }
+    const efaceDir = P.x >= e.x ? 1 : -1;  // 1=direita (em direção ao player), -1=esquerda
     cx.save();
     cx.translate(e.x, e.y+ebob);
-    cx.scale(1+esq, 1-esq);
+    cx.scale((1+esq)*efaceDir, 1-esq);
     if(eimg&&eimg.complete&&eimg.naturalWidth){
       // glow sutil no sprite (sem círculo preenchido)
       cx.shadowColor=e.c; cx.shadowBlur=e.boss?18:5;
@@ -3024,10 +3085,11 @@ function render(){
     cx.shadowBlur=0;
     if(P.cls.sprite){                        // personagem animado: quadro da folha de sprites
       drawCharSprite(cx,P.cls.sprite,cimg,P.x,P.y,pdr*2, P.moving?'walk':'idle', P.animT, P.facing.x<0);
-    } else {                                 // personagem estático: sprite livre (sem clip circular)
+    } else {                                 // personagem estático: sprite livre com flip direcional
+      const pfaceDir = P.facing.x < 0 ? -1 : 1;
       cx.save();
       cx.translate(P.x, P.y+pbob);
-      cx.scale(1+psq, 1-psq);
+      cx.scale((1+psq)*pfaceDir, 1-psq);
       const pdw=pdr*2, pdh=pdw*(cimg.naturalHeight/cimg.naturalWidth);
       cx.drawImage(cimg,-pdw/2,-pdh/2,pdw,pdh);
       cx.restore();
