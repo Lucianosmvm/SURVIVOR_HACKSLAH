@@ -801,8 +801,8 @@ const CLASSES=[
     ult:{id:'whirl',name:'Giro Cortante',icon:'🌀',cd:16,desc:'Gira cortando tudo ao redor + invencível.',
       cast(P){ P.whirlT=3; P.invuln=Math.max(P.invuln,1.5); }},   // o dano do giro é tratado no update()
     passive:'+3 armadura e +20 vida', stats:'❤️180 · 🌀 Giro Cortante',
-    // folha 5 quadros em 1 linha = ciclo de caminhada
-    sprite:{ cols:5, rows:1, fps:9, anims:{ idle:{row:0,from:0,to:0}, walk:{row:0,from:0,to:4} } },
+    // folha 3 quadros de 48x48 em 1 linha = ciclo de caminhada
+    sprite:{ cols:3, rows:1, fps:8, anims:{ idle:{row:0,from:0,to:0}, walk:{row:0,from:0,to:2} } },
     init:P=>{ P.armor+=3; P.maxhp+=20; P.hp=P.maxhp; } },
 ];
 // compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
@@ -1004,11 +1004,24 @@ const BIOMES=[
 //   n     : [min,max] quantos por bloco (900x900)
 //   minR  : raio livre ao redor do spawn (não nasce dentro)
 //   chest : ao encostar, coleta ouro/xp e some
+//  --- colisão por objeto (opcionais) ---
+//   cr    : raio da hitbox (padrão: r*0.9)
+//   cox   : offset X do centro da hitbox em relação ao ponto x do objeto (padrão: 0)
+//   coy   : offset Y do centro da hitbox em relação ao ponto y do objeto (padrão: -r*0.4)
 const WORLD_OBJECTS=[
+  {id:'flor',     icon:'🌳', r:8, solid:false,  n:[5,10], minR:220},
+  {id:'grama',     icon:'🌳', r:8, solid:false,  n:[5,10], minR:220},
+  {id:'arbusto1',     icon:'🌳', r:24, solid:true,  n:[1,3], minR:220},
+  {id:'pedra',    icon:'🪨', r:24, solid:true,  n:[0,2], minR:200},
+  {id:'pedra4',    icon:'🪨', r:24, solid:true,  n:[0,2], minR:200,cr:30,cox:0,coy:-40},
+
+
+
   {id:'tree',     icon:'🌳', r:38, solid:true,  n:[1,3], minR:220},
   {id:'tree2',    icon:'🌲', r:36, solid:true,  n:[0,2], minR:220},
   {id:'tree_dead',icon:'🪾', r:34, solid:true,  n:[0,1], minR:220},
   {id:'rock',     icon:'🪨', r:24, solid:true,  n:[0,2], minR:200},
+ 
   {id:'bush',     icon:'🌿', r:18, solid:false, n:[1,3], minR:140},
   {id:'stump',    icon:'🪵', r:16, solid:false, n:[0,1], minR:140},
   {id:'grass_t',  icon:'🌾', r:14, solid:false, n:[1,4], minR:120},
@@ -1029,11 +1042,11 @@ WORLD_OBJECTS.forEach(t=>{ const im=new Image(); im.src=t.img; objImages[t.id]=i
 //   c : cor sólida do tile
 //   w : peso (chance relativa). Maior = aparece mais.
 //  Arte opcional: Img/ground_<id>.png (tile repetido, senão usa a cor 'c').
-const TILE=70;                                 // tamanho do tile do chão (px)
+const TILE=48;                                 // tamanho do tile do chão (px)
 // O mapa inteiro usa UM tipo de chão por partida (sorteado pela seed).
 // `w` = peso do sorteio do tipo (maior = sai mais). `c` = cor de fallback.
 const GROUND=[
-  {id:'grass',  c:'#243018', w:30},            // grama
+  {id:'grama',  c:'#243018', w:30},            // grama
   {id:'grass2', c:'#202b14', w:24},            // grama (musgo)
   {id:'dirt',   c:'#3a2a16', w:14},            // terra
   {id:'stone',  c:'#3a3a3e', w:12},            // paralelepípedo
@@ -1113,8 +1126,8 @@ function pickGround(){
 // =====================================================================
 const MAPS=[
   {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
-    biome:'venom', ground:'grass', stars:1, diffMul:1, unlockCost:0, isLocked:false,
-    objects:['tree','tree2','bush','stump','grass_t','flower','barrel'],
+    biome:'venom', ground:'grama', stars:1, diffMul:1, unlockCost:0, isLocked:false,
+    objects:['pedra','pedra4','arbusto','arbusto1','stump','grass_t','flower','barrel'],
     enemies:['grunt','swarm','fast'], bosses:['void']},
   {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
     biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
@@ -1216,7 +1229,8 @@ function collideRocks(o){
   }
   for(const w of arena.objs){
     if(!w.t.solid || w.collected) continue;
-    const dx=o.x-w.x, dy=o.y-w.y, rr=w.r*0.7+o.r, d=Math.hypot(dx,dy);
+    const cr=w.t.cr??w.r*0.9, wcx=w.x+(w.t.cox??0), wcy=w.y+(w.t.coy??-w.r*0.4);
+    const dx=o.x-wcx, dy=o.y-wcy, rr=cr+o.r, d=Math.hypot(dx,dy);
     if(d<rr && d>0){ const push=rr-d; o.x+=dx/d*push; o.y+=dy/d*push; }
   }
 }

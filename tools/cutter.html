@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Cortador de Spritesheet — Objetos</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d0c1c; color: #e8e8f0; font-family: 'Trebuchet MS', sans-serif; min-height: 100vh; padding: 20px; }
+h1 { font-size: 22px; color: #ffd27a; margin-bottom: 4px; }
+.sub { color: #9aa0c0; font-size: 13px; margin-bottom: 20px; }
+
+.card { background: #171436; border: 1px solid #2a2750; border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+label { font-size: 12px; color: #9aa0c0; display: block; margin-bottom: 5px; }
+input[type=number], select { background: #120f2a; border: 1px solid #2a2750; color: #fff;
+  border-radius: 8px; padding: 8px 10px; font-size: 14px; width: 100%; outline: none; }
+input[type=number]:focus, select:focus { border-color: #7af5ff; }
+input[type=file] { display: none; }
+.upload-btn { display: inline-block; padding: 12px 28px; border-radius: 30px; cursor: pointer;
+  background: linear-gradient(90deg,#7af5ff,#b388ff); color: #0a0a14; font-weight: bold; font-size: 15px; }
+.upload-btn:hover { opacity: .9; }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.col { flex: 1; min-width: 120px; }
+
+.btn { padding: 11px 26px; border-radius: 30px; border: none; cursor: pointer; font-weight: bold;
+  font-size: 14px; color: #0a0a14; background: linear-gradient(90deg,#7af5ff,#b388ff); transition: .1s; }
+.btn:hover { opacity: .9; }
+.btn:active { transform: scale(.96); }
+.btn.ghost { background: #161430; color: #cdd2f0; border: 1px solid #2a2750; }
+.btn:disabled { opacity: .4; cursor: default; }
+
+/* preview */
+#previewWrap { position: relative; display: inline-block; max-width: 100%; overflow: auto; }
+#previewWrap canvas { display: block; }
+#gridCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+/* cells */
+.cells-grid { display: grid; gap: 10px; margin-top: 14px; }
+.cell-item { background: #120f2a; border: 1px solid #2a2750; border-radius: 10px; padding: 8px;
+  display: flex; align-items: center; gap: 8px; }
+.cell-thumb { width: 52px; height: 52px; flex-shrink: 0; border-radius: 6px;
+  background: #1a1638; border: 1px solid #2a2750; image-rendering: pixelated; }
+.cell-num { font-size: 10px; color: #6a6f92; flex-shrink: 0; width: 20px; text-align: center; }
+.cell-sel { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.cell-sel select { padding: 6px 8px; font-size: 12px; }
+.cell-custom { background: #120f2a; border: 1px solid #2a2750; color: #fff;
+  border-radius: 8px; padding: 5px 8px; font-size: 12px; width: 100%; outline: none; display: none; }
+.cell-custom:focus { border-color: #ffd27a; }
+.cell-custom.show { display: block; }
+.cell-preview-name { font-size: 10px; color: #7af5ff; margin-top: 2px; min-height: 14px; }
+
+/* status */
+#status { padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: bold; margin-top: 12px; display: none; }
+#status.ok  { background: #0f2a1a; border: 1px solid #3aff8a; color: #3aff8a; display: block; }
+#status.err { background: #2a0f0f; border: 1px solid #ff5a5a; color: #ff5a5a; display: block; }
+
+.hint { font-size: 11px; color: #6a6f92; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>✂️ Cortador de Spritesheet</h1>
+<p class="sub">Carregue sua imagem, defina a grade e baixe cada objeto com o nome certo para o jogo.</p>
+
+<!-- UPLOAD -->
+<div class="card">
+  <label>SPRITESHEET</label>
+  <label class="upload-btn">📂 Escolher imagem <input type="file" id="fileIn" accept="image/*"></label>
+  <p class="hint" id="imgInfo" style="margin-top:10px">Nenhuma imagem carregada.</p>
+</div>
+
+<!-- GRADE -->
+<div class="card" id="settingsCard" style="display:none">
+  <label style="margin-bottom:8px;font-size:13px;color:#ffd27a;font-weight:bold">CONFIGURAR GRADE</label>
+
+  <!-- toggle -->
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="btn" id="modePx"  style="padding:7px 18px;font-size:13px">Por pixels (largura × altura)</button>
+    <button class="btn ghost" id="modeGrid" style="padding:7px 18px;font-size:13px">Por grade (cols × linhas)</button>
+  </div>
+
+  <!-- modo pixels -->
+  <div id="panelPx">
+    <div class="row">
+      <div class="col">
+        <label>Largura de cada quadro (px)</label>
+        <input type="number" id="cellWIn" value="64" min="1" max="4096">
+      </div>
+      <div class="col">
+        <label>Altura de cada quadro (px)</label>
+        <input type="number" id="cellHIn" value="64" min="1" max="4096">
+      </div>
+      <div class="col">
+        <label>Zoom da prévia</label>
+        <select id="zoom">
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- modo grade -->
+  <div id="panelGrid" style="display:none">
+    <div class="row">
+      <div class="col">
+        <label>Colunas (objetos por linha)</label>
+        <input type="number" id="cols" value="4" min="1" max="128">
+      </div>
+      <div class="col">
+        <label>Linhas</label>
+        <input type="number" id="rows" value="3" min="1" max="128">
+      </div>
+      <div class="col">
+        <label>Zoom da prévia</label>
+        <select id="zoom2">
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint" id="cellInfo" style="margin-top:10px"></p>
+  <div style="margin-top:14px">
+    <button class="btn" id="applyBtn">Aplicar grade</button>
+  </div>
+</div>
+
+<!-- PREVIEW -->
+<div class="card" id="previewCard" style="display:none">
+  <label style="font-size:13px;color:#ffd27a;font-weight:bold;margin-bottom:12px">PRÉVIA DA GRADE</label>
+  <div style="overflow:auto;max-width:100%">
+    <div id="previewWrap">
+      <canvas id="imgCanvas"></canvas>
+      <canvas id="gridCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- CÉLULAS -->
+<div class="card" id="cellsCard" style="display:none">
+  <label style="font-size:13px;color:#ffd27a;font-weight:bold;margin-bottom:4px">NOMEAR CADA OBJETO</label>
+  <p class="hint">Selecione o nome do jogo para cada quadro. Escolha "— ignorar —" para não baixar.</p>
+  <div class="cells-grid" id="cellsGrid"></div>
+
+  <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn" id="downloadAll">⬇️ Baixar todos os nomeados</button>
+    <button class="btn ghost" id="downloadOne">⬇️ Baixar selecionado</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<canvas id="offscreen" style="display:none"></canvas>
+
+<script>
+const OBJ_NAMES = [
+  '— ignorar —',
+  'obj_tree',
+  'obj_tree2',
+  'obj_tree_dead',
+  'obj_rock',
+  'obj_rock2',
+  'obj_bush',
+  'obj_stump',
+  'obj_grass_t',
+  'obj_flower',
+  'obj_campfire',
+  'obj_barrel',
+  'obj_crystal',
+];
+
+let img = null, cols = 4, rows = 3, zoom = 1;
+let cellW = 0, cellH = 0;
+let thumbs = [];
+let modePxActive = true; // true = por pixels, false = por grade
+
+const fileIn       = document.getElementById('fileIn');
+const imgInfo      = document.getElementById('imgInfo');
+const settingsCard = document.getElementById('settingsCard');
+const previewCard  = document.getElementById('previewCard');
+const cellsCard    = document.getElementById('cellsCard');
+const colsIn       = document.getElementById('cols');
+const rowsIn       = document.getElementById('rows');
+const cellWIn      = document.getElementById('cellWIn');
+const cellHIn      = document.getElementById('cellHIn');
+const zoomSel      = document.getElementById('zoom');
+const zoomSel2     = document.getElementById('zoom2');
+const cellInfo     = document.getElementById('cellInfo');
+const applyBtn     = document.getElementById('applyBtn');
+const imgCanvas    = document.getElementById('imgCanvas');
+const gridCanvas   = document.getElementById('gridCanvas');
+const cellsGrid    = document.getElementById('cellsGrid');
+const offscreen    = document.getElementById('offscreen');
+const status       = document.getElementById('status');
+const panelPx      = document.getElementById('panelPx');
+const panelGrid    = document.getElementById('panelGrid');
+const btnModePx    = document.getElementById('modePx');
+const btnModeGrid  = document.getElementById('modeGrid');
+
+// alternância de modo
+function setMode(px) {
+  modePxActive = px;
+  panelPx.style.display   = px ? '' : 'none';
+  panelGrid.style.display = px ? 'none' : '';
+  btnModePx.className   = px ? 'btn' : 'btn ghost';
+  btnModeGrid.className = px ? 'btn ghost' : 'btn';
+  updateCellInfo();
+}
+btnModePx.addEventListener('click',   () => setMode(true));
+btnModeGrid.addEventListener('click', () => setMode(false));
+
+fileIn.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    img = im;
+    imgInfo.textContent = `${im.naturalWidth} × ${im.naturalHeight} px — ${file.name}`;
+    settingsCard.style.display = '';
+    updateCellInfo();
+  };
+  im.onerror = () => showStatus('Não foi possível carregar a imagem.', 'err');
+  im.src = url;
+});
+
+function updateCellInfo() {
+  if (!img) return;
+  if (modePxActive) {
+    const cw = Math.max(1, parseInt(cellWIn.value) || 64);
+    const ch = Math.max(1, parseInt(cellHIn.value) || 64);
+    const c  = Math.floor(img.naturalWidth  / cw);
+    const r  = Math.floor(img.naturalHeight / ch);
+    cellInfo.textContent = `Grade calculada: ${c} col × ${r} lin  |  Total: ${c * r} quadros`;
+  } else {
+    const c  = Math.max(1, parseInt(colsIn.value) || 1);
+    const r  = Math.max(1, parseInt(rowsIn.value) || 1);
+    const cw = Math.floor(img.naturalWidth  / c);
+    const ch = Math.floor(img.naturalHeight / r);
+    cellInfo.textContent = `Cada quadro: ${cw} × ${ch} px  |  Total: ${c * r} quadros`;
+  }
+}
+
+[cellWIn, cellHIn, colsIn, rowsIn].forEach(el => el.addEventListener('input', updateCellInfo));
+
+applyBtn.addEventListener('click', () => {
+  if (!img) return;
+  zoom = parseFloat((modePxActive ? zoomSel : zoomSel2).value) || 1;
+
+  if (modePxActive) {
+    cellW = Math.max(1, parseInt(cellWIn.value) || 64);
+    cellH = Math.max(1, parseInt(cellHIn.value) || 64);
+    cols  = Math.floor(img.naturalWidth  / cellW);
+    rows  = Math.floor(img.naturalHeight / cellH);
+  } else {
+    cols  = Math.max(1, parseInt(colsIn.value) || 1);
+    rows  = Math.max(1, parseInt(rowsIn.value) || 1);
+    cellW = img.naturalWidth  / cols;
+    cellH = img.naturalHeight / rows;
+  }
+
+  if (cols < 1 || rows < 1) { showStatus('Tamanho de quadro maior que a imagem.', 'err'); return; }
+
+  drawPreview();
+  buildCells();
+
+  previewCard.style.display = '';
+  cellsCard.style.display   = '';
+  status.className = '';
+  status.style.display = 'none';
+});
+
+[zoomSel, zoomSel2].forEach(sel => sel.addEventListener('change', () => {
+  zoom = parseFloat(sel.value);
+  if (img && cols > 0) drawPreview();
+}));
+
+function drawPreview() {
+  const dw = Math.round(img.naturalWidth * zoom);
+  const dh = Math.round(img.naturalHeight * zoom);
+
+  imgCanvas.width  = dw; imgCanvas.height = dh;
+  gridCanvas.width = dw; gridCanvas.height = dh;
+
+  const ic = imgCanvas.getContext('2d');
+  ic.clearRect(0, 0, dw, dh);
+  // checkerboard behind transparent areas
+  for (let ty = 0; ty < Math.ceil(dh / 8); ty++)
+    for (let tx = 0; tx < Math.ceil(dw / 8); tx++) {
+      ic.fillStyle = (tx + ty) % 2 === 0 ? '#1a1638' : '#0d0c1c';
+      ic.fillRect(tx * 8, ty * 8, 8, 8);
+    }
+  ic.drawImage(img, 0, 0, dw, dh);
+
+  const gc = gridCanvas.getContext('2d');
+  gc.clearRect(0, 0, dw, dh);
+  gc.strokeStyle = 'rgba(122,245,255,0.7)';
+  gc.lineWidth = 1;
+
+  for (let c = 0; c <= cols; c++) {
+    const x = Math.round(c * cellW * zoom);
+    gc.beginPath(); gc.moveTo(x, 0); gc.lineTo(x, dh); gc.stroke();
+  }
+  for (let r = 0; r <= rows; r++) {
+    const y = Math.round(r * cellH * zoom);
+    gc.beginPath(); gc.moveTo(0, y); gc.lineTo(dw, y); gc.stroke();
+  }
+
+  // numbers
+  gc.fillStyle = 'rgba(122,245,255,0.9)';
+  gc.font = `bold ${Math.max(10, Math.round(Math.min(cellW, cellH) * zoom * 0.18))}px sans-serif`;
+  gc.textBaseline = 'top';
+  gc.textAlign = 'left';
+  let idx = 0;
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      gc.fillText(idx, Math.round(c * cellW * zoom) + 3, Math.round(r * cellH * zoom) + 2);
+      idx++;
+    }
+}
+
+function buildCells() {
+  thumbs = [];
+  cellsGrid.innerHTML = '';
+  const total = cols * rows;
+  cellsGrid.style.gridTemplateColumns = `repeat(auto-fill, minmax(280px, 1fr))`;
+
+  for (let i = 0; i < total; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    const sx = col * cellW, sy = row * cellH;
+
+    // miniatura
+    const thumb = document.createElement('canvas');
+    thumb.width = 52; thumb.height = 52;
+    thumb.className = 'cell-thumb';
+    const tc = thumb.getContext('2d');
+    for (let ty = 0; ty < 7; ty++) for (let tx = 0; tx < 7; tx++) {
+      tc.fillStyle = (tx + ty) % 2 === 0 ? '#1a1638' : '#0d0c1c';
+      tc.fillRect(tx * 8, ty * 8, 8, 8);
+    }
+    const scale = Math.min(52 / cellW, 52 / cellH);
+    const dw = Math.round(cellW * scale), dh = Math.round(cellH * scale);
+    tc.drawImage(img, sx, sy, cellW, cellH, Math.round((52-dw)/2), Math.round((52-dh)/2), dw, dh);
+    thumbs.push(thumb);
+
+    // dropdown de sugestões
+    const sel = document.createElement('select');
+    OBJ_NAMES.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+    // opção "nome personalizado"
+    const optCustom = document.createElement('option');
+    optCustom.value = '__custom__'; optCustom.textContent = '✏️ Nome personalizado…';
+    sel.appendChild(optCustom);
+
+    // auto-sugestão pelos primeiros índices
+    const autoNames = ['obj_tree','obj_tree2','obj_tree_dead','obj_rock','obj_rock2',
+      'obj_bush','obj_stump','obj_grass_t','obj_flower','obj_campfire','obj_barrel','obj_crystal'];
+    if (i < autoNames.length) sel.value = autoNames[i];
+
+    // campo de texto livre (aparece ao escolher "personalizado")
+    const customIn = document.createElement('input');
+    customIn.type = 'text';
+    customIn.className = 'cell-custom';
+    customIn.placeholder = 'Ex: rock_b  ou  obj_rock_b';
+
+    // prévia do nome final
+    const preview = document.createElement('div');
+    preview.className = 'cell-preview-name';
+
+    function updatePreview() {
+      const raw = sel.value === '__custom__' ? customIn.value.trim() : sel.value;
+      if (!raw || raw === '— ignorar —') { preview.textContent = ''; return; }
+      const fname = raw.startsWith('obj_') ? raw : 'obj_' + raw;
+      preview.textContent = '→ ' + fname + '.png';
+    }
+
+    sel.addEventListener('change', () => {
+      if (sel.value === '__custom__') {
+        customIn.classList.add('show');
+        customIn.focus();
+      } else {
+        customIn.classList.remove('show');
+      }
+      updatePreview();
+    });
+    customIn.addEventListener('input', updatePreview);
+    updatePreview();
+
+    const num = document.createElement('span');
+    num.className = 'cell-num'; num.textContent = i;
+
+    const selWrap = document.createElement('div');
+    selWrap.className = 'cell-sel';
+    selWrap.appendChild(sel);
+    selWrap.appendChild(customIn);
+    selWrap.appendChild(preview);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'cell-item';
+    wrap.dataset.idx = i;
+    wrap.appendChild(num);
+    wrap.appendChild(thumb);
+    wrap.appendChild(selWrap);
+    cellsGrid.appendChild(wrap);
+  }
+}
+
+// retorna o nome final de um cell-item (sem extensão, com prefixo obj_)
+function getCellName(item) {
+  const sel = item.querySelector('select');
+  const customIn = item.querySelector('.cell-custom');
+  let raw = sel.value === '__custom__' ? customIn.value.trim() : sel.value;
+  if (!raw || raw === '— ignorar —') return null;
+  return raw.startsWith('obj_') ? raw : 'obj_' + raw;
+}
+
+function extractCell(idx) {
+  const col = idx % cols, row = Math.floor(idx / cols);
+  const sx = col * cellW, sy = row * cellH;
+  const oc = document.createElement('canvas');
+  oc.width = Math.ceil(cellW); oc.height = Math.ceil(cellH);
+  oc.getContext('2d').drawImage(img, sx, sy, cellW, cellH, 0, 0, cellW, cellH);
+  return oc;
+}
+
+function downloadCanvas(canvas, filename) {
+  canvas.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }, 'image/png');
+}
+
+document.getElementById('downloadAll').addEventListener('click', async () => {
+  const items = cellsGrid.querySelectorAll('.cell-item');
+  let count = 0;
+  for (const item of items) {
+    const name = getCellName(item);
+    if (!name) continue;
+    const idx = parseInt(item.dataset.idx);
+    const canvas = extractCell(idx);
+    await new Promise(r => setTimeout(r, 150));
+    downloadCanvas(canvas, name + '.png');
+    count++;
+  }
+  if (count === 0) {
+    showStatus('Nenhum objeto nomeado. Preencha os nomes antes de baixar.', 'err');
+  } else {
+    showStatus(`✔ ${count} arquivo(s) baixando. Salve na pasta Img/ do jogo.`, 'ok');
+  }
+});
+
+document.getElementById('downloadOne').addEventListener('click', () => {
+  const items = cellsGrid.querySelectorAll('.cell-item');
+  for (const item of items) {
+    const name = getCellName(item);
+    if (!name) continue;
+    const idx = parseInt(item.dataset.idx);
+    downloadCanvas(extractCell(idx), name + '.png');
+    showStatus(`✔ Baixando "${name}.png".`, 'ok');
+    return;
+  }
+  showStatus('Nenhum objeto nomeado.', 'err');
+});
+
+function showStatus(msg, type) {
+  status.textContent = msg;
+  status.className = type;
+  status.style.display = 'block';
+}
+</script>
+</body>
+</html>
