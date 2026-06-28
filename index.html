@@ -2997,10 +2997,10 @@ function render(){
       const dw=dr*2, dh=dw*(eimg.naturalHeight/eimg.naturalWidth);
       cx.drawImage(eimg,-dw/2,-dh/2,dw,dh);
       cx.shadowBlur=0;
-      // overlay de hit (branco) ou freeze (azul) sobre o sprite
-      if(e.hit>0||e.freeze>0){
-        cx.globalAlpha=e.hit>0?0.5:0.35;
-        cx.fillStyle=e.freeze>0?'#9ad8ff':'#ffffff';
+      // overlay de freeze (azul) sobre o sprite
+      if(e.freeze>0){
+        cx.globalAlpha=0.35;
+        cx.fillStyle='#9ad8ff';
         cx.fillRect(-dw/2,-dh/2,dw,dh);
         cx.globalAlpha=1;
       }
@@ -3079,7 +3079,6 @@ function render(){
     cx.restore(); }
 
   cx.save();
-  if(P.invuln>0&&Math.floor(P.invuln*20)%2)cx.globalAlpha=0.5;
   const cimg=charImages[P.cls.id];
   if(cimg&&cimg.complete&&cimg.naturalWidth){
     cx.shadowBlur=0;
