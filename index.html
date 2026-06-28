@@ -392,12 +392,17 @@
   .lb-tab.active .ti{ filter:drop-shadow(0 0 8px rgba(255,210,122,.6)); }
   .lb-tab:active{ transform:scale(.94); }
 
+  /* ---- Tab panels (conteúdo inline do lobby) ---- */
+  .lb-tab-panel { display:flex; flex-direction:column; gap:10px; }
+  .lb-tab-panel.hidden { display:none !important; }
+  /* hero e play-btn ficam fixos acima dos panels */
+  .lb-body { flex-direction:column; display:flex; gap:10px; }
+
   @media(min-width:760px) and (orientation:landscape){
-    .lb-body{ grid-template-columns:1.1fr .9fr; align-items:start; }
-    .lb-main{ display:contents; }
-    .lb-hero{ grid-column:1; min-height:340px; }
-    .lb-play{ grid-column:1; }
-    .lb-panel{ grid-column:2; }
+    .lb-body{ flex-direction:row; flex-wrap:wrap; align-items:start; }
+    .lb-hero{ flex:1 1 52%; min-height:340px; }
+    .lb-play{ flex:1 1 52%; }
+    .lb-tab-panel{ flex:1 1 42%; }
   }
 
   /* ---- Splash / Login screen ---- */
@@ -568,27 +573,27 @@
     </div>
   </div>
 
-  <!-- body: left rail + center -->
+  <!-- body: hero sempre visível + painéis de tab -->
   <div class="lb-body">
-    <div class="lb-main">
-      <div class="lb-hero">
-        <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
-        <button class="lb-arrow l" id="lbPrev">‹</button>
-        <button class="lb-arrow r" id="lbNext">›</button>
-        <div class="lb-chapter">
-          <div class="lb-hclass" id="lbHClass">CLASSE</div>
-          <div class="lb-hname" id="lbHName">Nome</div>
-        </div>
-        <div class="lb-hsub" id="lbHSub"></div>
+    <div class="lb-hero">
+      <div class="lb-portrait"><img id="lbPortrait" alt="" style="display:none"><span class="lb-pemoji" id="lbPemoji">⚔️</span></div>
+      <button class="lb-arrow l" id="lbPrev">‹</button>
+      <button class="lb-arrow r" id="lbNext">›</button>
+      <div class="lb-chapter">
+        <div class="lb-hclass" id="lbHClass">CLASSE</div>
+        <div class="lb-hname" id="lbHName">Nome</div>
       </div>
+      <div class="lb-hsub" id="lbHSub"></div>
+    </div>
 
-      <button class="lb-play" id="lbPlay"><b>JOGAR</b><span id="lbPlaySub">— escolher classe —</span></button>
+    <button class="lb-play" id="lbPlay"><b>JOGAR</b><span id="lbPlaySub">— escolher classe —</span></button>
 
+    <!-- INÍCIO -->
+    <div class="lb-tab-panel" data-tab="home">
       <div class="lb-panel">
         <div class="lb-ptitle">ATRIBUTOS</div>
         <div class="lb-hstats" id="lbHStats"></div>
       </div>
-
       <button class="lb-panel" data-act="pets" id="lbPetBtn"
         style="display:flex;align-items:center;gap:10px;width:100%;border:none;text-align:left;cursor:pointer;color:inherit;font:inherit">
         <span id="lbPetIcon" style="font-size:28px">🐾</span>
@@ -598,7 +603,6 @@
         </span>
         <span style="color:#7af5ff;font-weight:bold">Trocar ›</span>
       </button>
-
       <button class="lb-panel" data-act="inv" id="lbInvBtn"
         style="display:flex;align-items:center;gap:10px;width:100%;border:none;text-align:left;cursor:pointer;color:inherit;font:inherit;position:relative">
         <span style="font-size:28px">🎒</span>
@@ -609,7 +613,6 @@
         <span style="color:#7af5ff;font-weight:bold">Abrir ›</span>
         <i class="lb-dot" id="lbInvDot" style="display:none;position:absolute;top:8px;right:8px"></i>
       </button>
-
       <div class="lb-panel">
         <div class="lb-ptitle">PROGRESSO</div>
         <div class="lb-season">
@@ -621,6 +624,41 @@
           </div>
           <div style="text-align:right;font-weight:bold;color:#ffd27a" id="lbRec2">--:--</div>
         </div>
+      </div>
+    </div>
+
+    <!-- HERÓIS -->
+    <div class="lb-tab-panel hidden" data-tab="hero">
+      <div class="classes" id="classes"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding-bottom:8px">
+        <button class="btn" id="startBtn" disabled style="opacity:.5">Selecione uma classe</button>
+      </div>
+    </div>
+
+    <!-- LOJA -->
+    <div class="lb-tab-panel hidden" data-tab="shop">
+      <p class="sub" style="text-align:center">Melhorias <b>permanentes</b> para todas as partidas.<br>Ouro: <b id="shopGold" style="color:#ffd27a">0</b> ✦</p>
+      <div class="upgrades" id="shopList"></div>
+    </div>
+
+    <!-- MISSÕES -->
+    <div class="lb-tab-panel hidden" data-tab="missions">
+      <p class="sub" style="text-align:center">Cumpra objetivos e <b>resgate ouro</b>.<br>Ouro: <b id="missGold" style="color:#ffd27a">0</b> ✦</p>
+      <div class="upgrades" id="missList"></div>
+    </div>
+
+    <!-- TROFÉUS -->
+    <div class="lb-tab-panel hidden" data-tab="achv">
+      <p class="sub" style="text-align:center"><b id="achvCount">0/0</b> desbloqueadas</p>
+      <div class="upgrades" id="achvList"></div>
+    </div>
+
+    <!-- TALENTOS -->
+    <div class="lb-tab-panel hidden" data-tab="talents">
+      <p class="sub" style="text-align:center">Bônus <b>permanentes</b>. Ganhe <b>PT</b> jogando.<br>Pontos: <b id="talPts" style="color:#7af5ff">0</b> 🌟</p>
+      <div class="tal-grid" id="talGrid"></div>
+      <div style="display:flex;justify-content:center;padding-bottom:8px">
+        <button class="btn ghost" id="talReset">↺ Resetar PT</button>
       </div>
     </div>
   </div>
@@ -652,14 +690,9 @@
   <div class="scrfoot"><button class="btn ghost" id="howBack">◀ Voltar</button></div>
 </div>
 
-<!-- CLASS SELECT -->
+<!-- CLASS SELECT (vazio — conteúdo movido para tab Heróis no lobby) -->
 <div class="screen hidden haspad" id="select">
-  <h2>Escolha sua classe</h2>
-  <div class="classes" id="classes"></div>
-  <div class="scrfoot">
-    <button class="btn" id="startBtn" disabled style="opacity:.5">Selecione uma classe</button>
-    <button class="btn ghost" id="selBack">◀ Voltar</button>
-  </div>
+  <div class="scrfoot"><button class="btn ghost" id="selBack">◀ Voltar</button></div>
 </div>
 
 <!-- MAP SELECT -->
@@ -699,38 +732,23 @@
   <div class="scrfoot"><button class="btn ghost" id="forgeBack">◀ Voltar</button></div>
 </div>
 
-<!-- SHOP -->
+<!-- SHOP (vazio — conteúdo movido para tab Loja no lobby) -->
 <div class="screen hidden haspad" id="shop">
-  <h2>🛒 Loja de Melhorias</h2>
-  <p class="sub">Melhorias <b>permanentes</b>, valem em todas as partidas.<br>Ouro: <b id="shopGold" style="color:#ffd27a">0</b> ✦</p>
-  <div class="upgrades" id="shopList"></div>
   <div class="scrfoot"><button class="btn ghost" id="shopBack">◀ Voltar</button></div>
 </div>
 
-<!-- TALENTOS -->
+<!-- TALENTOS (vazio — conteúdo movido para tab Talentos no lobby) -->
 <div class="screen hidden haspad" id="talents">
-  <h2>🌳 Árvore de Talentos</h2>
-  <p class="sub">Bônus <b>permanentes</b>. Ganhe <b>PT</b> jogando.<br>Pontos: <b id="talPts" style="color:#7af5ff">0</b> 🌟</p>
-  <div class="tal-grid" id="talGrid"></div>
-  <div class="scrfoot">
-    <button class="btn ghost" id="talReset">↺ Resetar PT</button>
-    <button class="btn ghost" id="talBack">◀ Voltar</button>
-  </div>
+  <div class="scrfoot"><button class="btn ghost" id="talBack">◀ Voltar</button></div>
 </div>
 
-<!-- MISSÕES -->
+<!-- MISSÕES (vazio — conteúdo movido para tab Missões no lobby) -->
 <div class="screen hidden haspad" id="missions">
-  <h2>📜 Missões</h2>
-  <p class="sub">Cumpra objetivos e <b>resgate ouro</b> pra Loja.<br>Ouro: <b id="missGold" style="color:#ffd27a">0</b> ✦</p>
-  <div class="upgrades" id="missList"></div>
   <div class="scrfoot"><button class="btn ghost" id="missBack">◀ Voltar</button></div>
 </div>
 
-<!-- CONQUISTAS -->
+<!-- CONQUISTAS (vazio — conteúdo movido para tab Troféus no lobby) -->
 <div class="screen hidden haspad" id="achv">
-  <h2>🏆 Conquistas</h2>
-  <p class="sub"><b id="achvCount" style="color:#ffd27a">0/0</b> desbloqueadas</p>
-  <div class="upgrades" id="achvList"></div>
   <div class="scrfoot"><button class="btn ghost" id="achvBack">◀ Voltar</button></div>
 </div>
 
@@ -2649,23 +2667,23 @@ function renderLobby(){
 function refreshRecord(){ if($('lbRec')) renderLobby(); }
 function updateMenuGold(){ if($('lbGold')) renderLobby(); }
 
+function switchTab(tab){
+  document.querySelectorAll('.lb-tab').forEach(b=>b.classList.toggle('active', b.dataset.act===tab));
+  document.querySelectorAll('.lb-tab-panel').forEach(p=>p.classList.toggle('hidden', p.dataset.tab!==tab));
+}
 function lobbyAct(a){
-  if(a==='home'){ /* already home */ }
-  else if(a==='hero'){ buildClassCards(); show('select'); }
-  else if(a==='shop'){ buildShop(); show('shop'); }
-  else if(a==='missions'){ buildMissions(); show('missions'); }
-  else if(a==='achv'){ buildAchievements(); show('achv'); }
-  else if(a==='talents'){ buildTalents(); show('talents'); }
+  if(a==='home'){ switchTab('home'); }
+  else if(a==='hero'){ switchTab('hero'); buildClassCards(); }
+  else if(a==='shop'){ switchTab('shop'); buildShop(); }
+  else if(a==='missions'){ switchTab('missions'); buildMissions(); }
+  else if(a==='achv'){ switchTab('achv'); buildAchievements(); }
+  else if(a==='talents'){ switchTab('talents'); buildTalents(); }
   else if(a==='pets'){ buildPetCards(); show('pets'); }
   else if(a==='inv'){ buildInventory(); show('inv'); }
   else if(a==='how'){ show('how'); }
 }
 document.querySelectorAll('#menu [data-act]').forEach(b=>{
-  b.onclick=()=>{
-    if(b.classList.contains('lb-navbtn'))
-      document.querySelectorAll('.lb-navbtn').forEach(n=>n.classList.toggle('active',n===b));
-    lobbyAct(b.dataset.act);
-  };
+  b.onclick=()=>{ lobbyAct(b.dataset.act); };
 });
 $('lbPlay').onclick=()=>{
   if(!selectedClass) return;
