@@ -844,6 +844,16 @@ const RARITIES={
 //  As 6 classes do GDD. Os ids são preservados (compat. de saves/desbloqueio);
 //  só a identidade, atributos e a habilidade (ult) mudam.
 const CLASSES=[
+  {id:'guerreiro',icon:'🗡️',name:'Guerreiro',desc:'Muita vida e golpes amplos.',start:'whip',img:'Img/guerreiro.png',dr:20,
+    rarity:'rare', startLevel:1, isLocked:false,
+    attrs:{hp:180, speed:2.7, attack:18, defense:12},
+    abilities:['Chicote','Giro Cortante'],
+    ult:{id:'whirl',name:'Giro Cortante',icon:'🌀',cd:16,desc:'Gira cortando tudo ao redor + invencível.',
+      cast(P){ P.whirlT=3; P.invuln=Math.max(P.invuln,1.5); }},   // o dano do giro é tratado no update()
+    passive:'+3 armadura e +20 vida', stats:'❤️180 · 🌀 Giro Cortante',
+    init:P=>{ P.armor+=3; P.maxhp+=20; P.hp=P.maxhp; } },
+
+
   {id:'mage',icon:'🔥',name:'Mago',desc:'Pouca vida, muito dano em área.',start:'bolt',img:'Img/mago.png',dr:20,
     rarity:'common', startLevel:1, unlockCost:0, isLocked:false,
     attrs:{hp:80, speed:3.0, attack:22, defense:3},
@@ -855,6 +865,7 @@ const CLASSES=[
           c:'#ff7a3a',type:'fireball',boomR:(130)*P.area,boomDmg:70*P.might}); }},
     passive:'+20% dano e +15% área', stats:'❤️80 · 🔥 Bola de Fogo',
     init:P=>{ P.might+=0.20; P.area+=0.15; P.boltBonus=0.10; }},
+  
   {id:'knight',icon:'🛡️',name:'Paladino',desc:'Escudos, cura e luz sagrada.',color:'#ffd27a',start:'holy',
     rarity:'rare', startLevel:1, unlockCost:300, isLocked:true,
     attrs:{hp:160, speed:2.7, attack:12, defense:16},
@@ -865,6 +876,7 @@ const CLASSES=[
         particles.push({ring:true,x:P.x,y:P.y,r:8,max:210*P.area,t:0.6,c:'#fff4b0'}); }},
     passive:'+4 armadura e +0.6 regen', stats:'❤️160 · ✨ Luz Divina',
     init:P=>{ P.armor+=4; P.regen+=0.6; }},
+  
   {id:'ranger',icon:'🏹',name:'Arqueiro',desc:'Ataque rápido, veloz e crítico.',color:'#9aff7a',start:'arrow',
     rarity:'epic', startLevel:1, unlockCost:600, isLocked:true,
     attrs:{hp:100, speed:3.5, attack:15, defense:5},
@@ -874,6 +886,7 @@ const CLASSES=[
         bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*11,vy:Math.sin(a)*11,r:6,dmg:22,life:1.4,pierce:99,c:'#9aff7a',type:'arrow',a}); } }},
     passive:'+12% crítico e +10% vel. ataque', stats:'❤️100 · 🎯 Rajada',
     init:P=>{ P.crit+=0.12; P.haste+=0.10; }},
+ 
   {id:'warlock',icon:'💀',name:'Necromante',desc:'Invoca esqueletos e drena vida.',color:'#c08bff',start:'aura',
     rarity:'legendary', startLevel:1, unlockCost:1000, isLocked:true,
     attrs:{hp:110, speed:2.8, attack:14, defense:7},
@@ -885,6 +898,7 @@ const CLASSES=[
         particles.push({ring:true,x:P.x,y:P.y,r:8,max:90,t:0.5,c:'#c08bff'}); }},
     passive:'cura ao matar (roubo de vida)', stats:'❤️110 · 💀 Esqueletos',
     init:P=>{ P.healOnKill=2; }},
+  
   {id:'warrior',icon:'🗡️',name:'Assassino',desc:'Facas, veneno e alta esquiva.',color:'#7bbf5a',start:'poison',img:'',
     rarity:'epic', startLevel:1, unlockCost:400, isLocked:true,
     attrs:{hp:95, speed:3.3, attack:18, defense:5},
@@ -895,16 +909,8 @@ const CLASSES=[
           bullets.push({knife:true,x:P.x,y:P.y,vx:Math.cos(a)*12,vy:Math.sin(a)*12,r:5,dmg:16,life:0.9,pierce:2,c:'#7bbf5a',type:'knife',a}); } }},
     passive:'25% de esquiva', stats:'❤️95 · 🗡️ Facas',
     init:P=>{ P.dodge=0.25; }},
-  {id:'barbarian',icon:'🪓',name:'Guerreiro',desc:'Muita vida e golpes amplos.',color:'#ff8a5a',start:'whip',img:'Img/mago.png',
-    rarity:'rare', startLevel:1, isLocked:false,
-    attrs:{hp:180, speed:2.7, attack:18, defense:12},
-    abilities:['Chicote','Giro Cortante'],
-    ult:{id:'whirl',name:'Giro Cortante',icon:'🌀',cd:16,desc:'Gira cortando tudo ao redor + invencível.',
-      cast(P){ P.whirlT=3; P.invuln=Math.max(P.invuln,1.5); }},   // o dano do giro é tratado no update()
-    passive:'+3 armadura e +20 vida', stats:'❤️180 · 🌀 Giro Cortante',
-    // folha 3 quadros de 48x48 em 1 linha = ciclo de caminhada
-    sprite:{ cols:3, rows:1, fps:8, anims:{ idle:{row:0,from:0,to:0}, walk:{row:0,from:0,to:2} } },
-    init:P=>{ P.armor+=3; P.maxhp+=20; P.hp=P.maxhp; } },
+ 
+  
 ];
 // compat: jogabilidade lê c.hp / c.speed diretamente -> derivam de attrs
 // img: arquivo de arte na pasta Img. Por padrão "Img/<id>.png".
@@ -1075,6 +1081,561 @@ const WEAPONS={
     fire(w,L,dt){ w.cd=2.4/P.haste; const cnt=1+Math.floor((L+1)/2);
       for(let i=0;i<cnt;i++){ const a=Math.random()*TAU;
         bullets.push({holy:true,x:P.x,y:P.y,vx:Math.cos(a)*3,vy:Math.sin(a)*3,r:9,dmg:6+L*2,life:3.5,pierce:99,c:'#fff4b0',type:'holy',_hitTimer:0}); } }},
+
+  // ==================== NOVAS ARMAS ====================
+
+  // --- PROJÉTEIS ---
+  shotgun:{name:'Espingarda Arcana',icon:'💥',desc:'Cone de projéteis à frente.',
+    fire(w,L,dt){ w.cd=1.1/P.haste; const a=Math.atan2(P.facing.y||0,P.facing.x||1);
+      const n=3+L; for(let s=0;s<n;s++){const sa=a+(s-(n-1)/2)*0.25;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(sa)*12,vy:Math.sin(sa)*12,r:5,dmg:5+L*2,life:0.5,pierce:0,c:'#ffa44a',type:'shotgun'});} }},
+
+  sniper:{name:'Canhão Arcano',icon:'🔭',desc:'Projétil único de alto dano.',
+    fire(w,L,dt){ w.cd=2.0/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*22,vy:Math.sin(a)*22,r:8,dmg:38+L*14,life:1.4,pierce:1+L,c:'#ff4444',type:'sniper'}); }},
+
+  triple:{name:'Tridente Arcano',icon:'🔱',desc:'3 projéteis simultâneos.',
+    fire(w,L,dt){ w.cd=0.85/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      for(let s=-1;s<=1;s++) bullets.push({x:P.x,y:P.y,vx:Math.cos(a+s*0.28)*9,vy:Math.sin(a+s*0.28)*9,r:5,dmg:8+L*3,life:1.2,pierce:1,c:'#aa55ff',type:'triple'}); }},
+
+  burst:{name:'Rajada de Energia',icon:'💫',desc:'Salva de tiros rápidos.',
+    fire(w,L,dt){ w.cd=1.6/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      const n=4+L; for(let i=0;i<n;i++) bullets.push({x:P.x,y:P.y,
+        vx:Math.cos(a+rand(-0.1,0.1))*14,vy:Math.sin(a+rand(-0.1,0.1))*14,r:4,dmg:4+L*2,life:0.6,pierce:0,c:'#44eeff',type:'burst'}); }},
+
+  fan:{name:'Leque Cortante',icon:'🌬️',desc:'Projéteis em arco amplo.',
+    fire(w,L,dt){ w.cd=1.5/P.haste; const a=Math.atan2(P.facing.y||0,P.facing.x||1);
+      const n=5+L; for(let s=0;s<n;s++){const sa=a+(s/(n-1)-0.5)*1.4;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(sa)*9,vy:Math.sin(sa)*9,r:5,dmg:5+L*2,life:0.9,pierce:1,c:'#ff88aa',type:'fan'});} }},
+
+  seeker:{name:'Mísseis Guiados',icon:'🚀',desc:'Projéteis teleguiados.',
+    fire(w,L,dt){ w.cd=1.8/P.haste;
+      nearestEnemies(2+Math.floor(L/2)).forEach((tg,i)=>{ const a=Math.atan2(tg.y-P.y,tg.x-P.x)+rand(-0.2,0.2);
+        bullets.push({x:P.x+i*3,y:P.y,vx:Math.cos(a)*8,vy:Math.sin(a)*8,r:5,dmg:10+L*4,life:1.6,pierce:0,homing:tg,c:'#ff6633',type:'seeker'}); }); }},
+
+  needle:{name:'Agulha Sônica',icon:'📌',desc:'Ultra-veloz e perfurante.',
+    fire(w,L,dt){ w.cd=0.4/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*26,vy:Math.sin(a)*26,r:3,dmg:4+L*2,life:0.65,pierce:3+L,c:'#ffffff',type:'needle'}); }},
+
+  spiralshot:{name:'Espiral Mágica',icon:'🌀',desc:'Fluxo contínuo em espiral.',
+    fire(w,L,dt){ w.cd=0.13; w._ang=(w._ang||0)+0.55; const n=1+Math.floor(L/3);
+      for(let i=0;i<n;i++){const a=w._ang+i*TAU/n;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*8,vy:Math.sin(a)*8,r:5,dmg:3+L*1.5,life:1.0,pierce:0,c:'#cc88ff',type:'spiral'});} }},
+
+  cannon:{name:'Canhão de Plasma',icon:'💣',desc:'Projétil enorme e devastador.',
+    fire(w,L,dt){ w.cd=2.8/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,r:14,dmg:0,life:1.8,pierce:0,c:'#cc44ff',boomR:(80+L*18)*P.area,boomDmg:(30+L*10)*P.might,boomC:'#cc44ff',type:'cannon'}); }},
+
+  icebolt:{name:'Flecha de Gelo',icon:'🧊',desc:'Explode e congela ao acertar.',
+    fire(w,L,dt){ w.cd=1.3/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,r:7,dmg:0,life:1.2,pierce:0,c:'#aaeeff',boomR:(40+L*10)*P.area,boomDmg:(8+L*3)*P.might,boomC:'#aaeeff',boomFreeze:1.0+L*0.15,type:'icebolt'}); }},
+
+  infernobolt:{name:'Esfera Infernal',icon:'🔆',desc:'Grande bola de fogo explosiva.',
+    fire(w,L,dt){ w.cd=2.4/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:12,dmg:0,life:1.5,pierce:0,c:'#ff7a3a',boomR:(100+L*20)*P.area,boomDmg:(25+L*9)*P.might,boomC:'#ff5500',type:'inferb'}); }},
+
+  shadowbolt:{name:'Seta das Sombras',icon:'🌑',desc:'Projétil sombrio lento e poderoso.',
+    fire(w,L,dt){ w.cd=1.0/P.haste;
+      nearestEnemies(1+Math.floor(L/3)).forEach(tg=>{ const a=Math.atan2(tg.y-P.y,tg.x-P.x);
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:7,dmg:14+L*5,life:1.6,pierce:1,homing:tg,c:'#441155',type:'shadow'}); }); }},
+
+  twinsaber:{name:'Sabres Duplos',icon:'⚔️',desc:'2 projéteis paralelos.',
+    fire(w,L,dt){ w.cd=0.6/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      const off=8+L; const px=Math.cos(a+TAU/4)*off,py=Math.sin(a+TAU/4)*off;
+      for(const m of[-1,1]) bullets.push({x:P.x+px*m,y:P.y+py*m,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:5,dmg:7+L*3,life:1.1,pierce:1,c:'#ffd27a',type:'sabre'}); }},
+
+  homingnova:{name:'Enxame de Orbes',icon:'🔵',desc:'6 orbes teleguiados.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const tgs=nearestEnemies(6+L);
+      for(let i=0;i<Math.min(6+L,tgs.length);i++){ const tg=tgs[i]; const a=Math.atan2(tg.y-P.y,tg.x-P.x);
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:7,dmg:8+L*3,life:2.0,pierce:0,homing:tg,c:'#66aaff',type:'orbe'}); } }},
+
+  lance:{name:'Lança de Runa',icon:'🗡️',desc:'Projétil longo que perfura tudo.',
+    fire(w,L,dt){ w.cd=1.4/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*13,vy:Math.sin(a)*13,r:5,dmg:12+L*4,life:1.5,pierce:99,c:'#ffcc44',type:'lance'}); }},
+
+  arcaneray:{name:'Raios em Cadeia+',icon:'🔗',desc:'Salta entre mais inimigos.',
+    fire(w,L,dt){ w.cd=1.2/P.haste; let src={x:P.x,y:P.y}; const hitSet=new Set(),jumps=3+L;
+      for(let j=0;j<jumps;j++){let best=null,bd=1e9;
+        enemies.forEach(e=>{if(hitSet.has(e)||e.dead)return;const d=dist2(src,e);if(d<350*350&&d<bd){bd=d;best=e;}});
+        if(!best)break; bullets.push({bolt2:true,x1:src.x,y1:src.y,x2:best.x,y2:best.y,t:0.2});
+        damageEnemy(best,(8+L*3)*P.might);hitSet.add(best);src=best;} }},
+
+  voidshot:{name:'Dardo do Vazio',icon:'🕳️',desc:'Dispara em 4 direções.',
+    fire(w,L,dt){ w.cd=1.0/P.haste; const n=4+Math.floor(L/2);
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:5,dmg:7+L*2,life:0.9,pierce:1,c:'#884499',type:'void'});} }},
+
+  boomerang2:{name:'Bumerangue Duplo',icon:'🪃',desc:'2 bumerangues simultâneos.',
+    fire(w,L,dt){ w.cd=1.8/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      for(const s of[-1,1]) bullets.push({boomer:true,x:P.x,y:P.y,vx:Math.cos(a+s*0.35)*9,vy:Math.sin(a+s*0.35)*9,
+        r:10,dmg:12+L*4,life:2.2,pierce:99,c:'#aaffaa',type:'boom2',spin:0,t0:0,maxT:0.5+L*0.04,ox:P.x,oy:P.y}); }},
+
+  homingfan:{name:'Tríade Guiada',icon:'📡',desc:'3 projéteis teleguiados.',
+    fire(w,L,dt){ w.cd=1.4/P.haste;
+      nearestEnemies(3).forEach(tg=>{ const a=Math.atan2(tg.y-P.y,tg.x-P.x);
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,r:5,dmg:9+L*3,life:1.5,pierce:0,homing:tg,c:'#ffdd44',type:'guided'}); }); }},
+
+  starshot:{name:'Nova de Estrelas',icon:'⭐',desc:'Disparo em todas as direções.',
+    fire(w,L,dt){ w.cd=2.0/P.haste; const n=8+L*2;
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:5,dmg:8+L*3,life:1.1,pierce:1,c:'#ffee44',type:'star'});} }},
+
+  plasmaball:{name:'Esfera de Plasma',icon:'🔵',desc:'Orbe que reacerta inimigos.',
+    fire(w,L,dt){ w.cd=2.8/P.haste; const cnt=1+Math.floor(L/3);
+      for(let i=0;i<cnt;i++){const a=Math.random()*TAU;
+        bullets.push({holy:true,x:P.x,y:P.y,vx:Math.cos(a)*4,vy:Math.sin(a)*4,r:11,dmg:8+L*3,life:4.0,pierce:99,c:'#4488ff',type:'plasma',_hitTimer:0}); } }},
+
+  ghostarrow:{name:'Flecha Espectral',icon:'👻',desc:'Atravessa paredes e inimigos.',
+    fire(w,L,dt){ w.cd=0.9/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({holy:true,x:P.x,y:P.y,vx:Math.cos(a)*11,vy:Math.sin(a)*11,r:5,dmg:9+L*3,life:1.4,pierce:99,c:'#ccffee',type:'ghost',_ct:999}); }},
+
+  darkbolt:{name:'Orbe Sombrio',icon:'🖤',desc:'Lento, poderoso e teleguiado.',
+    fire(w,L,dt){ w.cd=2.2/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,r:10,dmg:28+L*10,life:2.0,pierce:2+L,homing:tg,c:'#330066',type:'dark'}); }},
+
+  bonespear:{name:'Lança de Ossos',icon:'🦴',desc:'Veloz, longa e perfurante.',
+    fire(w,L,dt){ w.cd=0.95/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      const cnt=1+Math.floor(L/4);
+      for(let s=0;s<cnt;s++) bullets.push({x:P.x,y:P.y,vx:Math.cos(a+rand(-0.06,0.06))*15,vy:Math.sin(a+rand(-0.06,0.06))*15,r:4,dmg:11+L*4,life:1.3,pierce:4+L,c:'#eeddbb',type:'bone'}); }},
+
+  sunflare:{name:'Chama Solar',icon:'🌞',desc:'Bola solar lenta e devastadora.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*4,vy:Math.sin(a)*4,r:18,dmg:0,life:2.0,pierce:0,c:'#ffee00',boomR:(120+L*25)*P.area,boomDmg:(35+L*12)*P.might,boomC:'#ffee00',type:'sun'}); }},
+
+  crystalburst:{name:'Estilhaços de Cristal',icon:'💎',desc:'8 projéteis em explosão.',
+    fire(w,L,dt){ w.cd=1.8/P.haste; const tg=nearestEnemies(1)[0];
+      const ba=tg?Math.atan2(tg.y-P.y,tg.x-P.x):0;
+      for(let i=0;i<8;i++){const a=ba+i*TAU/8;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:5,dmg:8+L*3,life:0.9,pierce:1,c:'#88ffff',type:'crystal'});} }},
+
+  emeraldspray:{name:'Jato Esmeralda',icon:'💚',desc:'Spray contínuo de projéteis.',
+    fire(w,L,dt){ w.cd=0.22; const a=Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a+rand(-0.15,0.15))*15,vy:Math.sin(a+rand(-0.15,0.15))*15,r:4,dmg:3+L*1.5,life:0.55,pierce:0,c:'#44ff77',type:'esp'}); }},
+
+  coralspike:{name:'Espinhos de Coral',icon:'🪸',desc:'3 espinhos finos por disparo.',
+    fire(w,L,dt){ w.cd=0.55/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      const n=3+Math.floor(L/2);
+      for(let s=0;s<n;s++) bullets.push({x:P.x,y:P.y,vx:Math.cos(a+rand(-0.08,0.08))*17,vy:Math.sin(a+rand(-0.08,0.08))*17,r:3,dmg:5+L*2,life:0.7,pierce:1,c:'#ff9966',type:'coral'}); }},
+
+  bloodlance:{name:'Lança de Sangue',icon:'🩸',desc:'Perfura e drena vida.',
+    fire(w,L,dt){ w.cd=1.5/P.haste; const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*13,vy:Math.sin(a)*13,r:6,dmg:15+L*5,life:1.3,pierce:2+L,c:'#cc1133',type:'blood'});
+      P.hp=Math.min(P.maxhp,P.hp+(2+L)); }},
+
+  darkpact:{name:'Pacto Sombrio',icon:'🌙',desc:'Custa vida mas causa dano enorme.',
+    fire(w,L,dt){ w.cd=2.0/P.haste; if(P.hp<=3)return;
+      P.hp=Math.max(1,P.hp-2); const tg=nearestEnemies(1)[0];
+      const a=tg?Math.atan2(tg.y-P.y,tg.x-P.x):Math.atan2(P.facing.y||0,P.facing.x||1);
+      bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:9,dmg:(25+L*9)*P.might,life:1.4,pierce:3+L,c:'#550033',type:'pact'}); }},
+
+  thundernova:{name:'Nova de Trovão',icon:'🌩️',desc:'12 raios em todas as direções.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const n=12+L*2;
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*11,vy:Math.sin(a)*11,r:6,dmg:9+L*3,life:1.1,pierce:2,c:'#ffff44',type:'tnov'});} }},
+
+  omnistrike:{name:'Golpe Omnidirecional',icon:'🌟',desc:'Projéteis + chicote em todas as direções.',
+    fire(w,L,dt){ w.cd=2.2/P.haste;
+      for(let i=0;i<8;i++){const a=i*TAU/8;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*10,vy:Math.sin(a)*10,r:6,dmg:8+L*3,life:0.85,pierce:2,c:'#ffaa00',type:'omni'});}
+      const range=(110+L*20)*P.area,h=(40+L*5)*P.area;
+      for(const side of[1,-1]){ beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.15,dmg:(8+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h) damageEnemy(e,(8+L*3)*P.might,side,0);});} }},
+
+  arcsnova:{name:'Nova Arcana',icon:'💜',desc:'12 projéteis arcanos em anel.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const n=12+L*2;
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*9,vy:Math.sin(a)*9,r:6,dmg:7+L*3,life:1.0,pierce:1,c:'#aa44ff',type:'anv'});} }},
+
+  spectralring:{name:'Anel Espectral',icon:'🌐',desc:'16 projéteis espectrais em anel.',
+    fire(w,L,dt){ w.cd=2.8/P.haste; const n=16+L*2;
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*8,vy:Math.sin(a)*8,r:5,dmg:6+L*2,life:1.0,pierce:2,c:'#88ccee',type:'sring2'});} }},
+
+  revenant:{name:'Espectro Vingador',icon:'💀',desc:'Invoca espectros que atacam.',
+    fire(w,L,dt){ w.cd=1.6/P.haste; const cnt=2+Math.floor(L/2);
+      nearestEnemies(cnt).forEach(tg=>{ const a=Math.atan2(tg.y-P.y,tg.x-P.x);
+        bullets.push({x:P.x,y:P.y,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:8,dmg:10+L*4,life:1.5,pierce:1,c:'#aaaaff',type:'rev'}); }); }},
+
+  // --- ÁREA / CHÃO ---
+  shockwave:{name:'Onda de Choque',icon:'💢',desc:'Explosão em anel ao redor.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; const rad=(90+L*25)*P.area;
+      explodeAt(P.x,P.y,rad,(18+L*6)*P.might,'#ffaa44',0);
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.35,c:'#ffaa44'}); }},
+
+  blizzard:{name:'Nevasca',icon:'🌨️',desc:'Área de gelo contínua ao redor.',
+    fire(w,L,dt){ w.cd=0.3; const rad=(80+L*18)*P.area;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,2+L*0.8);e.freeze=Math.max(e.freeze||0,0.4);}}); }},
+
+  magmapool:{name:'Poça de Magma',icon:'🌋',desc:'Lava que queima e persiste.',
+    fire(w,L,dt){ w.cd=2.0/P.haste;
+      floor.push({x:P.x+rand(-30,30),y:P.y+rand(-30,30),r:(50+L*12)*P.area,t:0,life:4.0+L*0.5,dmg:(3+L)*0.4}); }},
+
+  acidrain:{name:'Chuva Ácida',icon:'🧪',desc:'Múltiplas poças corrosivas.',
+    fire(w,L,dt){ w.cd=2.2/P.haste; const n=3+Math.floor(L/2);
+      for(let i=0;i<n;i++){const tg=nearestEnemies(6)[Math.floor(Math.random()*Math.min(6,enemies.length))];
+        const x=tg?tg.x+rand(-20,20):P.x+rand(-120,120),y=tg?tg.y+rand(-20,20):P.y+rand(-120,120);
+        floor.push({x,y,r:(30+L*6)*P.area,t:0,life:2.8,dmg:(2+L)*0.3,poison:true});} }},
+
+  landmine:{name:'Campo Minado',icon:'💣',desc:'Minas explodem com atraso.',
+    fire(w,L,dt){ w.cd=1.8/P.haste; const n=1+Math.floor(L/3);
+      for(let i=0;i<n;i++){const x=P.x+rand(-100,100),y=P.y+rand(-100,100);
+        beams.push({strike:true,x,y,delay:1.0+rand(0,0.5),t:0,r:(45+L*10)*P.area,dmg:(20+L*8)*P.might,met:true});} }},
+
+  plaguecloud:{name:'Nuvem de Praga',icon:'☣️',desc:'Veneno persistente no alvo.',
+    fire(w,L,dt){ w.cd=1.8/P.haste; const tg=nearestEnemies(1)[0];
+      const x=tg?tg.x:P.x+rand(-80,80),y=tg?tg.y:P.y+rand(-80,80);
+      floor.push({x,y,r:(50+L*12)*P.area,t:0,life:4.5,dmg:(2.5+L)*0.3,poison:true}); }},
+
+  frostnova:{name:'Tempestade Gélida',icon:'❄️',desc:'Grande explosão de gelo.',
+    fire(w,L,dt){ w.cd=4.0/P.haste; const rad=(100+L*28)*P.area;
+      explodeAt(P.x,P.y,rad,(15+L*5)*P.might,'#aaeeff',1.5+L*0.2);
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.5,c:'#aaeeff'}); }},
+
+  quake:{name:'Terremoto',icon:'🌍',desc:'Tremores em grande área.',
+    fire(w,L,dt){ w.cd=5.0/P.haste;
+      for(let i=0;i<4;i++) explodeAt(P.x+rand(-60,60),P.y+rand(-60,60),(90+L*20)*P.area,(15+L*6)*P.might,'#aa7744',0); }},
+
+  geyser:{name:'Gêiseres',icon:'💨',desc:'Pilares de vapor sobre alvos.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const n=2+Math.floor(L/2);
+      for(let i=0;i<n;i++){const tg=nearestEnemies(8)[Math.floor(Math.random()*Math.min(8,enemies.length))];
+        const x=tg?tg.x+rand(-25,25):P.x+rand(-150,150),y=tg?tg.y+rand(-25,25):P.y+rand(-150,150);
+        beams.push({strike:true,x,y,delay:i*0.15,t:0,r:(40+L*8)*P.area,dmg:(18+L*7)*P.might,met:true});} }},
+
+  electricfield:{name:'Campo Elétrico',icon:'⚡',desc:'Raios contínuos ao redor.',
+    fire(w,L,dt){ w.cd=0.4; const rad=(100+L*20)*P.area; let src={x:P.x,y:P.y};
+      nearestEnemies(1+Math.floor(L/2)).forEach(e=>{if(dist2(src,e)<rad*rad){
+        bullets.push({bolt2:true,x1:src.x,y1:src.y,x2:e.x,y2:e.y,t:0.15});
+        damageEnemy(e,(2+L)*P.might); src=e; }}); }},
+
+  sandstorm:{name:'Tempestade de Areia',icon:'🌪️',desc:'Zona giratória de areia.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const r=(70+L*15)*P.area;
+      floor.push({x:P.x,y:P.y,r,t:0,life:3.5+L*0.4,dmg:(2+L)*0.35});
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:r,t:0.8,c:'#cc9944'}); }},
+
+  holyground:{name:'Chão Sagrado',icon:'✝️',desc:'Zona que dana e cura o jogador.',
+    fire(w,L,dt){ w.cd=4.5/P.haste; const r=(80+L*18)*P.area;
+      floor.push({x:P.x,y:P.y,r,t:0,life:5.0,dmg:(2+L)*0.25});
+      P.hp=Math.min(P.maxhp,P.hp+(8+L*3));
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:r,t:1.0,c:'#ffffaa'}); }},
+
+  poisonnova:{name:'Nova de Veneno',icon:'☠️',desc:'Explosão + nuvens de veneno.',
+    fire(w,L,dt){ w.cd=3.2/P.haste; const rad=(80+L*22)*P.area;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad) damageEnemy(e,(10+L*4)*P.might);});
+      for(let i=0;i<4;i++) floor.push({x:P.x+rand(-50,50),y:P.y+rand(-50,50),r:(30+L*7)*P.area,t:0,life:3.0,dmg:(2+L)*0.3,poison:true});
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.45,c:'#88ff44'}); }},
+
+  voidzone:{name:'Zona do Vazio',icon:'🕳️',desc:'Fenda persistente de dano.',
+    fire(w,L,dt){ w.cd=3.5/P.haste;
+      floor.push({x:P.x+rand(-40,40),y:P.y+rand(-40,40),r:(60+L*14)*P.area,t:0,life:6.0+L*0.6,dmg:(3+L)*0.35}); }},
+
+  infernowave:{name:'Onda Infernal',icon:'🔆',desc:'Fogo se expande em anel.',
+    fire(w,L,dt){ w.cd=3.8/P.haste; const rad=(120+L*25)*P.area;
+      floor.push({x:P.x,y:P.y,r:rad,t:0,life:1.5,dmg:(4+L)*0.4});
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.4,c:'#ff6600'}); }},
+
+  deathzone:{name:'Zona da Morte',icon:'💀',desc:'Aura sombria de dano puro.',
+    fire(w,L,dt){ w.cd=0.3; const rad=(65+L*14)*P.area;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad) damageEnemy(e,(2.5+L)*P.might);}); }},
+
+  meteorbarrage:{name:'Barrage de Meteoros',icon:'☄️',desc:'Chuva intensa de meteoros.',
+    fire(w,L,dt){ w.cd=4.5/P.haste; const n=3+L;
+      for(let i=0;i<n;i++){const tg=nearestEnemies(8)[Math.floor(Math.random()*Math.min(8,enemies.length))];
+        const x=tg?tg.x+rand(-35,35):P.x+rand(-180,180),y=tg?tg.y+rand(-35,35):P.y+rand(-180,180);
+        beams.push({strike:true,x,y,delay:i*0.1,t:0,r:(50+L*10)*P.area,dmg:(22+L*8)*P.might,met:true});} }},
+
+  thunderstrike:{name:'Raio Celestial',icon:'⛈️',desc:'Raios caem sobre os alvos.',
+    fire(w,L,dt){ w.cd=1.6/P.haste; const n=1+Math.floor(L/2);
+      nearestEnemies(n).forEach(tg=>{
+        bullets.push({bolt2:true,x1:tg.x,y1:tg.y-300,x2:tg.x,y2:tg.y,t:0.25});
+        damageEnemy(tg,(18+L*7)*P.might); }); }},
+
+  natureburst:{name:'Explosão Natural',icon:'🌿',desc:'Veneno + cura ao redor.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; const rad=(80+L*20)*P.area;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad) damageEnemy(e,(8+L*3)*P.might);});
+      floor.push({x:P.x,y:P.y,r:rad,t:0,life:3.0,dmg:(2+L)*0.25,poison:true});
+      P.hp=Math.min(P.maxhp,P.hp+(5+L*2));
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.5,c:'#44ff44'}); }},
+
+  // --- ESPECIAIS ---
+  blackhole:{name:'Buraco Negro',icon:'🌌',desc:'Suga inimigos e explode.',
+    fire(w,L,dt){ w.cd=6.0/P.haste; const rad=(130+L*25)*P.area;
+      enemies.forEach(e=>{if(!e.dead&&dist2(P,e)<(rad*1.5)*(rad*1.5)){
+        const a=Math.atan2(P.y-e.y,P.x-e.x); e.x+=Math.cos(a)*60; e.y+=Math.sin(a)*60; }});
+      explodeAt(P.x,P.y,rad,(18+L*7)*P.might,'#440088',0);
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.6,c:'#440088'}); }},
+
+  sonicboom:{name:'Estouro Sônico',icon:'💥',desc:'Onda de pressão massiva.',
+    fire(w,L,dt){ w.cd=4.0/P.haste; const rad=(140+L*30)*P.area;
+      explodeAt(P.x,P.y,rad,(20+L*8)*P.might,'#ffffaa',0);
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.3,c:'#ffffaa'}); }},
+
+  bloodrite:{name:'Pacto de Sangue',icon:'🩸',desc:'Gasta vida para explodir tudo.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; const cost=Math.max(1,8-L); if(P.hp<=cost+1)return;
+      P.hp-=cost; const rad=(100+L*25)*P.area;
+      explodeAt(P.x,P.y,rad,(22+L*9)*P.might,'#ff2244',0); }},
+
+  voidsurge:{name:'Surto do Vazio',icon:'🔮',desc:'3 explosões arcanas simultâneas.',
+    fire(w,L,dt){ w.cd=4.0/P.haste; const rad=(70+L*18)*P.area;
+      for(let i=0;i<3;i++){const a=i/3*TAU;
+        explodeAt(P.x+Math.cos(a)*rad*0.6,P.y+Math.sin(a)*rad*0.6,rad*0.6,(14+L*5)*P.might,'#8844ff',0); } }},
+
+  freezenova:{name:'Nova Congelante',icon:'💠',desc:'Grande explosão de gelo gelado.',
+    fire(w,L,dt){ w.cd=4.5/P.haste; const rad=(110+L*25)*P.area;
+      explodeAt(P.x,P.y,rad,(14+L*5)*P.might,'#aaeeff',2.0+L*0.2); }},
+
+  chainbomb:{name:'Bombas em Cadeia',icon:'💣',desc:'Várias bombas em círculo.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const n=2+Math.floor(L/2);
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({fireball:true,x:P.x+Math.cos(a)*20,y:P.y+Math.sin(a)*20,
+          vx:Math.cos(a)*6,vy:Math.sin(a)*6,r:8,dmg:0,life:1.0,pierce:0,
+          c:'#ff8800',boomR:(50+i*15+L*10)*P.area,boomDmg:(12+L*5)*P.might,boomC:'#ff8800',type:'cbomb'});} }},
+
+  soulfire:{name:'Fogo da Alma',icon:'🔥',desc:'Aura que cura ao dar dano.',
+    fire(w,L,dt){ w.cd=0.3; const rad=(75+L*16)*P.area; let hit=false;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,(2+L*0.8)*P.might);hit=true;}});
+      if(hit) P.hp=Math.min(P.maxhp,P.hp+0.06*L); }},
+
+  divinebeam:{name:'Feixe Divino',icon:'☀️',desc:'Raio de luz que cura o jogador.',
+    fire(w,L,dt){ w.cd=2.8/P.haste; let src={x:P.x,y:P.y}; const jumps=3+L;
+      nearestEnemies(jumps).forEach(e=>{
+        bullets.push({bolt2:true,x1:src.x,y1:src.y,x2:e.x,y2:e.y,t:0.25});
+        damageEnemy(e,(12+L*5)*P.might); src=e; });
+      P.hp=Math.min(P.maxhp,P.hp+(4+L*2)); }},
+
+  psychic:{name:'Poder Psíquico',icon:'🧠',desc:'Dano mental + cura proporcional.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const rad=(90+L*20)*P.area; let n=0;
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,(8+L*3)*P.might);n++;}});
+      if(n>3) P.hp=Math.min(P.maxhp,P.hp+n*0.5);
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.4,c:'#cc66ff'}); }},
+
+  arcanepulse:{name:'Pulso Arcano',icon:'🔮',desc:'Empurra e dana inimigos ao redor.',
+    fire(w,L,dt){ w.cd=2.0/P.haste; const rad=(70+L*18)*P.area;
+      enemies.forEach(e=>{if(!e.dead&&dist2(P,e)<rad*rad){
+        const a=Math.atan2(e.y-P.y,e.x-P.x); e.x+=Math.cos(a)*(50+L*10); e.y+=Math.sin(a)*(50+L*10);
+        damageEnemy(e,(10+L*4)*P.might);}});
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.3,c:'#8844cc'}); }},
+
+  wraithform:{name:'Forma Espectral',icon:'👻',desc:'Invencibilidade + explosão.',
+    fire(w,L,dt){ w.cd=5.0/P.haste; P.invuln=Math.max(P.invuln,1.5+L*0.2);
+      explodeAt(P.x,P.y,(80+L*20)*P.area,(12+L*5)*P.might,'#ccffee',0.5); }},
+
+  voidstrike:{name:'Golpe do Vazio',icon:'🌑',desc:'Teleporta raios até os inimigos.',
+    fire(w,L,dt){ w.cd=2.8/P.haste; const n=3+Math.floor(L/2);
+      nearestEnemies(n).forEach(tg=>{
+        damageEnemy(tg,(14+L*5)*P.might,tg.x-P.x,tg.y-P.y);
+        bullets.push({bolt2:true,x1:P.x,y1:P.y,x2:tg.x,y2:tg.y,t:0.2}); }); }},
+
+  chaos:{name:'Golpe do Caos',icon:'🎲',desc:'Efeito aleatório diferente por tiro.',
+    fire(w,L,dt){ w.cd=1.2/P.haste; const r=Math.floor(Math.random()*4);
+      if(r===0){ explodeAt(P.x,P.y,(80+L*18)*P.area,(15+L*5)*P.might,'#ff44aa',0); }
+      else if(r===1){ const tg=nearestEnemies(1)[0]; if(tg){ const a=Math.atan2(tg.y-P.y,tg.x-P.x);
+          bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*8,vy:Math.sin(a)*8,r:12,dmg:0,life:1.2,pierce:0,c:'#ff44aa',boomR:(90+L*20)*P.area,boomDmg:(20+L*8)*P.might,boomC:'#ff44aa',type:'chaos'}); }}
+      else if(r===2){ const rad=(70+L*15)*P.area; enemies.forEach(e=>{if(dist2(P,e)<rad*rad) e.freeze=1.2+L*0.15;}); }
+      else { P.hp=Math.min(P.maxhp,P.hp+(5+L*2)); } }},
+
+  timebomb:{name:'Bomba-Relógio',icon:'⏰',desc:'Explosão potente com atraso longo.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; const tg=nearestEnemies(1)[0];
+      const x=tg?tg.x+rand(-15,15):P.x+rand(-80,80),y=tg?tg.y+rand(-15,15):P.y+rand(-80,80);
+      beams.push({strike:true,x,y,delay:1.5,t:0,r:(70+L*18)*P.area,dmg:(30+L*12)*P.might,met:true}); }},
+
+  swordrain:{name:'Chuva de Espadas',icon:'🗡️',desc:'Espadas caem do céu.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; const n=4+L;
+      for(let i=0;i<n;i++){const tg=nearestEnemies(8)[Math.floor(Math.random()*Math.min(8,enemies.length))];
+        const x=tg?tg.x+rand(-30,30):P.x+rand(-160,160),y=tg?tg.y+rand(-30,30):P.y+rand(-160,160);
+        beams.push({strike:true,x,y,delay:i*0.12,t:0,r:(28+L*5)*P.area,dmg:(22+L*9)*P.might,met:true});} }},
+
+  hailstorm:{name:'Granizo Mágico',icon:'🌩️',desc:'Granizo cai sobre múltiplos alvos.',
+    fire(w,L,dt){ w.cd=1.5/P.haste; const n=3+L;
+      for(let i=0;i<n;i++){const tg=nearestEnemies(6)[Math.floor(Math.random()*Math.min(6,enemies.length))];
+        if(!tg)break;
+        bullets.push({x:tg.x+rand(-20,20),y:tg.y-250,vx:rand(-1,1),vy:12,r:6,dmg:10+L*4,life:0.6,pierce:0,c:'#aaddff',type:'hail'}); } }},
+
+  runeburst:{name:'Explosão de Runas',icon:'🔣',desc:'Runas explodem em padrão circular.',
+    fire(w,L,dt){ w.cd=5.0/P.haste; const n=3+L;
+      for(let i=0;i<n;i++){const a=i/n*TAU,r2=80+i*30;
+        beams.push({strike:true,x:P.x+Math.cos(a)*r2,y:P.y+Math.sin(a)*r2,delay:i*0.2,t:0,r:(45+L*10)*P.area,dmg:(16+L*6)*P.might,met:true});} }},
+
+  meteorchain:{name:'Meteoro Encadeado',icon:'💫',desc:'Meteoros saltam de alvo em alvo.',
+    fire(w,L,dt){ w.cd=3.5/P.haste; let src=nearestEnemies(1)[0]; if(!src)return;
+      const n=2+Math.floor(L/2),hit=new Set();
+      for(let i=0;i<n;i++){if(!src)break;
+        beams.push({strike:true,x:src.x,y:src.y,delay:i*0.2,t:0,r:(45+L*10)*P.area,dmg:(18+L*7)*P.might,met:true});
+        hit.add(src); let best=null,bd=1e9;
+        enemies.forEach(e=>{if(hit.has(e)||e.dead)return;const d=dist2(src,e);if(d<bd){bd=d;best=e;}});
+        src=best;} }},
+
+  // --- CHICOTES VARIADOS ---
+  gravewhip:{name:'Chicote Sombrio',icon:'⛓️',desc:'Chicote poderoso em 3 direções.',
+    fire(w,L,dt){ w.cd=1.0/P.haste; const range=(100+L*18)*P.area,h=(50+L*6)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.2,dmg:(8+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h) damageEnemy(e,(8+L*3)*P.might,side,0);});}
+      beams.push({whip:true,x:P.x,y:P.y,dir:1,range:h,h:range,t:0.2,dmg:(8+L*3)*P.might});
+      enemies.forEach(e=>{if(Math.abs(e.x-P.x)<h&&e.y<P.y&&P.y-e.y<range) damageEnemy(e,(8+L*3)*P.might,0,-1);}); }},
+
+  poisonwhip:{name:'Chicote Venenoso',icon:'🌿',desc:'Chicote que deixa veneno.',
+    fire(w,L,dt){ w.cd=1.2/P.haste; const range=(110+L*20)*P.area,h=(38+L*5)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.2,dmg:(6+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h){
+          damageEnemy(e,(6+L*3)*P.might,side,0);
+          floor.push({x:e.x,y:e.y,r:20*P.area,t:0,life:2.0,dmg:(1.5+L)*0.2,poison:true});}}); } }},
+
+  electricwhip:{name:'Chicote Elétrico',icon:'⚡',desc:'Chicote que encadeia raios.',
+    fire(w,L,dt){ w.cd=0.9/P.haste; const range=(100+L*20)*P.area,h=(36+L*5)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg:(9+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h){
+          damageEnemy(e,(9+L*3)*P.might);
+          bullets.push({bolt2:true,x1:e.x,y1:e.y,x2:e.x+rand(-60,60),y2:e.y+rand(-60,60),t:0.15});}}); } }},
+
+  frostwhip:{name:'Chicote Gélido',icon:'🌨️',desc:'Chicote que congela inimigos.',
+    fire(w,L,dt){ w.cd=1.1/P.haste; const range=(115+L*20)*P.area,h=(38+L*5)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.2,dmg:(8+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h){
+          damageEnemy(e,(8+L*3)*P.might,side,0); e.freeze=0.8+L*0.15;}}); } }},
+
+  voidwhip:{name:'Chicote do Vazio',icon:'🌀',desc:'Chicote de longo alcance sombrio.',
+    fire(w,L,dt){ w.cd=1.3/P.haste; const range=(140+L*25)*P.area,h=(45+L*7)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.22,dmg:(14+L*5)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h) damageEnemy(e,(14+L*5)*P.might,side*2,0);}); } }},
+
+  sporewhip:{name:'Chicote de Esporos',icon:'🍄',desc:'Deixa esporos venenosos.',
+    fire(w,L,dt){ w.cd=1.4/P.haste; const range=(90+L*18)*P.area,h=(34+L*4)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg:(7+L*3)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h){
+          damageEnemy(e,(7+L*3)*P.might);
+          floor.push({x:e.x,y:e.y,r:25*P.area,t:0,life:3.0,dmg:(1.5+L)*0.25,poison:true});}}); } }},
+
+  ghostwhip:{name:'Chicote Fantasma',icon:'👻',desc:'Chicote largo espectral.',
+    fire(w,L,dt){ w.cd=0.7/P.haste; const range=(130+L*22)*P.area,h=(40+L*5)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.2,dmg:(11+L*4)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h) damageEnemy(e,(11+L*4)*P.might,side,0);}); } }},
+
+  soulwhip:{name:'Chicote da Alma',icon:'🔮',desc:'Chicote extra-longo e potente.',
+    fire(w,L,dt){ w.cd=0.8/P.haste; const range=(150+L*28)*P.area,h=(50+L*8)*P.area;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.22,dmg:(13+L*5)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h) damageEnemy(e,(13+L*5)*P.might,side*2,0);}); } }},
+
+  crimsonslash:{name:'Corte Carmesim',icon:'🩸',desc:'Chicote que drena vida.',
+    fire(w,L,dt){ w.cd=0.9/P.haste; const range=(100+L*18)*P.area,h=(38+L*5)*P.area; let healed=false;
+      for(const side of[1,-1]){
+        beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg:(10+L*4)*P.might});
+        enemies.forEach(e=>{const rx=(e.x-P.x)*side;if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h){
+          damageEnemy(e,(10+L*4)*P.might,side,0); if(!healed){P.hp=Math.min(P.maxhp,P.hp+(2+L));healed=true;}}});} }},
+
+  // --- ORBITAIS E GIRATÓRIOS ---
+  spiralmeteor:{name:'Meteoro Espiral',icon:'🌀',desc:'Meteoros em padrão espiral.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; w._ang=(w._ang||0)+TAU/5; const n=1+Math.floor(L/3);
+      for(let i=0;i<n;i++){const a=w._ang+i*TAU/n,r2=70+L*10;
+        beams.push({strike:true,x:P.x+Math.cos(a)*r2,y:P.y+Math.sin(a)*r2,delay:0,t:0,r:(40+L*8)*P.area,dmg:(15+L*6)*P.might,met:true});} }},
+
+  spikeorb:{name:'Orbe de Picos',icon:'🔴',desc:'Orbes pesados em órbita lenta.',
+    fire(w,L,dt){ w.cd=2.0/P.haste; const cnt=2+Math.floor(L/2);
+      for(let i=0;i<cnt;i++){const a=(w._ang=(w._ang||0)+TAU/cnt)+i*TAU/cnt;
+        bullets.push({holy:true,x:P.x+Math.cos(a)*55,y:P.y+Math.sin(a)*55,
+          vx:Math.cos(a+TAU/4)*1.5,vy:Math.sin(a+TAU/4)*1.5,r:10,dmg:10+L*4,life:2.5,pierce:99,c:'#ff4444',type:'spike',_hitTimer:0}); } }},
+
+  icecrown:{name:'Coroa de Gelo',icon:'👑',desc:'Cristais de gelo em órbita.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const cnt=3+Math.floor(L/2);
+      for(let i=0;i<cnt;i++){const a=i/cnt*TAU+(gameTime*2);
+        bullets.push({fireball:true,x:P.x+Math.cos(a)*60,y:P.y+Math.sin(a)*60,
+          vx:Math.cos(a+TAU/4)*1.5,vy:Math.sin(a+TAU/4)*1.5,r:8,dmg:0,life:0.8,pierce:0,
+          c:'#aaeeff',boomR:(30+L*7)*P.area,boomDmg:(7+L*3)*P.might,boomC:'#aaeeff',boomFreeze:1.0,type:'icecrown'});} }},
+
+  flameorb:{name:'Orbe de Chamas',icon:'🟠',desc:'Orbe flamejante em órbita.',
+    fire(w,L,dt){ w.cd=0.35; w._ang=(w._ang||0)+0.3;
+      bullets.push({fireball:true,x:P.x+Math.cos(w._ang)*65,y:P.y+Math.sin(w._ang)*65,
+        vx:Math.cos(w._ang+TAU/4)*2,vy:Math.sin(w._ang+TAU/4)*2,r:10,dmg:0,life:0.6,
+        pierce:0,c:'#ff6600',boomR:(35+L*8)*P.area,boomDmg:(6+L*2)*P.might,boomC:'#ff6600',type:'forb'}); }},
+
+  shadowring:{name:'Anel Sombrio',icon:'🖤',desc:'Projéteis sombrios em anel giratório.',
+    fire(w,L,dt){ w.cd=0.2; w._ang=(w._ang||0)+0.6; const n=2+Math.floor(L/3);
+      for(let i=0;i<n;i++){const a=w._ang+i*TAU/n;
+        bullets.push({x:P.x+Math.cos(a)*70,y:P.y+Math.sin(a)*70,
+          vx:Math.cos(a)*6,vy:Math.sin(a)*6,r:7,dmg:5+L*2,life:0.7,pierce:0,c:'#220033',type:'sring'});} }},
+
+  runeorbit:{name:'Runas Orbitais',icon:'🔣',desc:'Runas que giram e danificam.',
+    fire(w,L,dt){ w.cd=2.2/P.haste; const cnt=2+Math.floor(L/2);
+      for(let i=0;i<cnt;i++){const a=i/cnt*TAU+(gameTime*1.5);
+        bullets.push({holy:true,x:P.x+Math.cos(a)*60,y:P.y+Math.sin(a)*60,
+          vx:Math.cos(a+TAU/4)*2,vy:Math.sin(a+TAU/4)*2,r:11,dmg:8+L*3,life:3.0,pierce:99,c:'#aa66ff',type:'rune',_hitTimer:0}); } }},
+
+  bladewhirlwind:{name:'Redemoinho de Lâminas',icon:'🌪️',desc:'Lâminas giram ao redor.',
+    fire(w,L,dt){ w.cd=0.12; w._ang=(w._ang||0)+0.55; const n=1+Math.floor(L/2);
+      for(let i=0;i<n;i++){const a=w._ang+i*TAU/n,r=55+L*8;
+        bullets.push({x:P.x+Math.cos(a)*r,y:P.y+Math.sin(a)*r,vx:Math.cos(a)*7,vy:Math.sin(a)*7,r:7,dmg:4+L*2,life:0.3,pierce:0,c:'#ffcc00',type:'bwirl'});} }},
+
+  plasmacross:{name:'Cruz de Plasma',icon:'✝️',desc:'4 raios perpendiculares.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const len=200+L*30,dmg=(12+L*5)*P.might;
+      for(let d=0;d<4;d++){const a=d*TAU/4;
+        bullets.push({bolt2:true,x1:P.x,y1:P.y,x2:P.x+Math.cos(a)*len,y2:P.y+Math.sin(a)*len,t:0.3});
+        enemies.forEach(e=>{const dx=e.x-P.x,dy=e.y-P.y;
+          const proj=dx*Math.cos(a)+dy*Math.sin(a),perp=Math.abs(-dx*Math.sin(a)+dy*Math.cos(a));
+          if(proj>0&&proj<len&&perp<(25+L*5)) damageEnemy(e,dmg,Math.cos(a),Math.sin(a));});} }},
+
+  holynova:{name:'Explosão Sagrada',icon:'✨',desc:'Orbes sagrados explodem ao redor.',
+    fire(w,L,dt){ w.cd=3.0/P.haste; const cnt=3+Math.floor(L/2);
+      for(let i=0;i<cnt;i++){const a=i/cnt*TAU+Math.random()*0.5;
+        bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*5,vy:Math.sin(a)*5,r:9,dmg:0,life:1.4,
+          pierce:0,c:'#fff4b0',boomR:(50+L*10)*P.area,boomDmg:(12+L*4)*P.might,boomC:'#fff4b0',type:'hnov'});} }},
+
+  boltstorm:{name:'Tempestade de Raios',icon:'⛈️',desc:'Raios em todos os inimigos ao redor.',
+    fire(w,L,dt){ w.cd=0.8/P.haste;
+      nearestEnemies(2+L).forEach(e=>{ bullets.push({bolt2:true,x1:P.x,y1:P.y,x2:e.x,y2:e.y,t:0.2});
+        damageEnemy(e,(6+L*2.5)*P.might); }); }},
+
+  ringoffire:{name:'Anel de Fogo',icon:'🔥',desc:'Projéteis flamejantes em anel.',
+    fire(w,L,dt){ w.cd=2.5/P.haste; const n=8+L;
+      for(let i=0;i<n;i++){const a=i/n*TAU;
+        bullets.push({fireball:true,x:P.x,y:P.y,vx:Math.cos(a)*6,vy:Math.sin(a)*6,r:7,dmg:0,life:1.1,
+          pierce:0,c:'#ff5500',boomR:(40+L*8)*P.area,boomDmg:(10+L*4)*P.might,boomC:'#ff5500',type:'rfire'});} }},
+
+  dualchain:{name:'Raio Duplo',icon:'⚡',desc:'2 raios em cadeia paralelos.',
+    fire(w,L,dt){ w.cd=1.8/P.haste;
+      for(let c=0;c<2;c++){let src={x:P.x+(c-0.5)*20,y:P.y}; const hitSet=new Set(),jumps=2+L;
+        for(let j=0;j<jumps;j++){let best=null,bd=1e9;
+          enemies.forEach(e=>{if(hitSet.has(e)||e.dead)return;const d=dist2(src,e);if(d<300*300&&d<bd){bd=d;best=e;}});
+          if(!best)break; bullets.push({bolt2:true,x1:src.x,y1:src.y,x2:best.x,y2:best.y,t:0.18});
+          damageEnemy(best,(8+L*3)*P.might);hitSet.add(best);src=best;}} }},
+
+  icenova2:{name:'Blizzard Explosiva',icon:'🌨️',desc:'Nova de gelo mais poderosa.',
+    fire(w,L,dt){ w.cd=3.8/P.haste; const rad=(90+L*24)*P.area;
+      particles.push({ring:true,x:P.x,y:P.y,r:8,max:rad,t:0.5,c:'#aaeeff'});
+      enemies.forEach(e=>{if(dist2(P,e)<rad*rad){damageEnemy(e,(16+L*6)*P.might,e.x-P.x,e.y-P.y);e.freeze=1.8+L*0.2;}}); }},
+
+  voltbarrage:{name:'Barragem de Volts',icon:'🔋',desc:'Descargas elétricas em série.',
+    fire(w,L,dt){ w.cd=2.0/P.haste;
+      nearestEnemies(4+L).forEach((e,i)=>{ bullets.push({bolt2:true,x1:P.x,y1:P.y,x2:e.x,y2:e.y,t:0.2+i*0.04});
+        damageEnemy(e,(8+L*3)*P.might); }); }},
+
+  icicledrop:{name:'Chuva de Icicles',icon:'🧊',desc:'Icicles caem congelando inimigos.',
+    fire(w,L,dt){ w.cd=1.8/P.haste; const n=2+Math.floor(L/2);
+      nearestEnemies(n).forEach(tg=>{
+        bullets.push({fireball:true,x:tg.x+rand(-15,15),y:tg.y-200,vx:rand(-0.5,0.5),vy:11,r:7,dmg:0,life:0.5,
+          pierce:0,c:'#aaeeff',boomR:(35+L*8)*P.area,boomDmg:(10+L*4)*P.might,boomC:'#aaeeff',boomFreeze:0.9+L*0.15,type:'icicle'}); }); }},
+
 };
 // =====================================================================
 //  CATÁLOGO DE INIMIGOS  (fonte única de verdade)
@@ -1106,6 +1667,12 @@ const WEAPONS={
 //  c   : cor do glow e fallback (usado no emoji e na barra de vida).
 const ENEMIES=[
   // --- comuns (qualquer mapa) ---
+  {id:'slime', name:'Slime Azul', img:'Img/enemy_slime.png', icon:'🥶', r:12, dr:22, hp:4, spd:0.7, dmg:4,  xp:1, gold:1, minTime:0, weight:40, dr:10},
+
+
+
+
+
   {id:'Zombie', name:'Zombi', img:'Img/enemy_zombie.png', icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
   {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
   {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  dr:13, hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
@@ -2471,6 +3038,17 @@ function upgradePool(){
     {k:'magnet',t:'🧲 Ímã',d:'+50% coleta.',f:()=>P.magnet*=1.5},
     {k:'armor',t:'🛡️ Armadura',d:'-2 dano recebido.',f:()=>P.armor+=2},
     {k:'crit',t:'🎯 Precisão',d:'+8% crítico (x2).',f:()=>P.crit+=0.08},
+    {k:'dodge',t:'🥷 Sombra',d:'+8% de esquiva.',f:()=>P.dodge=(P.dodge||0)+0.08},
+    {k:'xpboost',t:'📚 Sabedoria',d:'+25% XP ganho.',f:()=>P.xpMul=(P.xpMul||1)+0.25},
+    {k:'goldboost',t:'✦ Ganância+',d:'+25% ouro ganho.',f:()=>P.goldMul=(P.goldMul||1)+0.25},
+    {k:'titan',t:'🏔️ Titã',d:'+4 armadura extra.',f:()=>P.armor+=4},
+    {k:'swift',t:'🌬️ Rapidez',d:'+20% vel. de ataque.',f:()=>P.haste+=0.20},
+    {k:'wide',t:'⭕ Vastidão',d:'+20% área de ataque.',f:()=>P.area+=0.20},
+    {k:'power',t:'⚔️ Força+',d:'+20% dano.',f:()=>P.might+=0.20},
+    {k:'mana',t:'💙 Reserva',d:'+40 vida máx.',f:()=>{P.maxhp+=40;P.hp+=40;}},
+    {k:'focus',t:'🎯 Foco+',d:'+10% crítico.',f:()=>P.crit+=0.10},
+    {k:'dash',t:'💨 Impulso',d:'-15% cooldown do dash.',f:()=>P.dashMax*=0.85},
+    {k:'regen2',t:'✚ Regen+',d:'+1.0 vida/seg.',f:()=>P.regen+=1.0},
   ];
   passives.forEach(p=>pool.push({type:'passive',...p,lvl:'Passiva'}));
   const out=[],copy=[...pool];
@@ -2496,7 +3074,8 @@ function applyUpgrade(u){
 
 // ---------- Spawning ----------
 function spawnEnemy(){
-  const cycle=Math.floor((wave-1)/10);                   // 0,1,2... cada volta das ondas
+  if(enemies.length>=MAX_ENEMIES)return; // cap de inimigos para mobile
+  const cycle=Math.floor((wave-1)/10);
   const ang=srand(0,TAU), R=Math.hypot(W,H)/2+60;
   const mapMul=(arena.map&&arena.map.diffMul)||1;
   const diff=(1+gameTime/45)*(1+cycle*0.4)*mapMul*envCurse; // +40% por ciclo, x dif. mapa, x maldição
@@ -2678,18 +3257,26 @@ function drawMinions(){
 //  render() roda 1x por frame; o acumulador guarda o tempo sobrando.
 const FIXED_DT=1/60;
 let acc=0;
+// detecção de mobile — reduz limites de entidades e efeitos visuais custosos
+const isMobile=navigator.maxTouchPoints>0||/Mobi|Android/i.test(navigator.userAgent);
+const MAX_ENEMIES   = isMobile ? 80  : 300;
+const MAX_PARTICLES = isMobile ? 120 : 400;
+const MAX_DMGTEXTS  = isMobile ? 20  : 50;
+const MAX_STEPS     = isMobile ? 3   : 8;   // passos físicos por frame
+let _floorTick=0; // throttle do floor-damage
+
 function loop(now){
   if(!running)return;
   let frame=(now-last)/1000; last=now;
-  frame=Math.min(frame,0.25);                 // após travada do navegador, evita espiral
+  frame=Math.min(frame,0.25);
   if(!paused){
     acc+=frame;
     let steps=0;
-    while(acc>=FIXED_DT && steps<8){           // teto de 8 passos/frame (anti-espiral)
+    while(acc>=FIXED_DT && steps<MAX_STEPS){
       update(FIXED_DT); acc-=FIXED_DT; steps++;
-      if(!running||paused)break;               // morte ou level-up cortam o backlog
+      if(!running||paused)break;
     }
-    if(steps>=8)acc=0;                          // descarta excesso se não acompanhou
+    if(steps>=MAX_STEPS)acc=0;
   }
   render();
   requestAnimationFrame(loop);
@@ -2762,12 +3349,14 @@ function update(dt){
     if(b.holy){ b.spin=(b.spin||0)+dt*6; if(b._hitSet&&(b._clear||0)<b.life){} // re-hit handled below
       if(!b._ct)b._ct=0; b._ct-=dt; if(b._ct<=0){ if(b._hitSet)b._hitSet.clear(); b._ct=0.4; } }
     b.x+=b.vx*60*dt;b.y+=b.vy*60*dt;b.life-=dt;
+    // descarta projéteis simples que saíram da tela (economiza colisões)
+    if(!b.holy&&!b.boomer&&!b.homing&&(b.x<-250||b.x>W+250||b.y<-250||b.y>H+250)){b.dead=true;continue;}
     // rochas bloqueiam projéteis retos (holy/bumerangue orbitam o jogador -> passam)
     if(!b.holy&&!b.boomer){ for(const k of arena.rocks){ const rr=k.r+b.r; if(dist2(b,k)<rr*rr){ b.dead=true; break; } } }
     if(b.fireball){                              // bola de fogo: explode ao tocar inimigo ou ao expirar
       let hit=b.life<=0;
       for(const e of enemies){ if(e.dead)continue; const rr=b.r+e.r; if(dist2(b,e)<rr*rr){ hit=true; break; } }
-      if(hit){ explodeAt(b.x,b.y,b.boomR,b.boomDmg,'#ff7a3a',0); b.dead=true; }
+      if(hit){ explodeAt(b.x,b.y,b.boomR,b.boomDmg,b.boomC||'#ff7a3a',b.boomFreeze||0); b.dead=true; }
       continue;
     }
     for(const e of enemies){if(e.dead||b.dead)continue;const rr=b.r+e.r;
@@ -2776,7 +3365,12 @@ function update(dt){
   }
   bullets=bullets.filter(b=>b.bolt2?b.t>0:(b.life>0&&!b.dead));
 
-  for(const f of floor){f.t+=dt;enemies.forEach(e=>{if(dist2(f,e)<(f.r+e.r)*(f.r+e.r))damageEnemy(e,f.dmg);});}
+  for(const f of floor) f.t+=dt;
+  // throttle: checagem de dano de piso a cada 3 frames (x3 dmg para compensar)
+  _floorTick++;
+  if(_floorTick>=3){ _floorTick=0;
+    for(const f of floor) enemies.forEach(e=>{if(dist2(f,e)<(f.r+e.r)*(f.r+e.r))damageEnemy(e,f.dmg*3);});
+  }
   floor=floor.filter(f=>f.t<f.life);
 
   for(const o of orbs){const d=dist2(P,o);if(d<P.magnet*P.magnet)o.pull=true;
@@ -2808,8 +3402,10 @@ function update(dt){
 
   for(const p of particles){p.t-=dt;if(p.ring)p.r+=(p.max-p.r)*0.3;else{p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;}}
   particles=particles.filter(p=>p.t>0);
+  if(particles.length>MAX_PARTICLES) particles.splice(0, particles.length-MAX_PARTICLES);
   for(const d of dmgTexts){d.t-=dt;d.y-=30*dt;}
   dmgTexts=dmgTexts.filter(d=>d.t>0);
+  if(dmgTexts.length>MAX_DMGTEXTS) dmgTexts.splice(0, dmgTexts.length-MAX_DMGTEXTS);
   if(toastT>0)toastT-=dt; if(shake>0)shake*=0.85;
   updateHUD();
 }
@@ -2964,47 +3560,41 @@ function render(){
     cx.fillStyle='#0a0a14'; cx.fillText(kindById(o.item.kind).icon,0,1);
     cx.restore(); }
 
-  for(const e of enemies){
-    // bob + squash/stretch por inimigo (fase varia por posição → cada um num passo diferente)
+  // pré-filtra inimigos visíveis (culling) — evita trabalho em entidades fora de tela
+  const visEnemies=enemies.filter(e=>e.x>-80&&e.x<W+80&&e.y>-80&&e.y<H+80);
+  const bigCrowd=visEnemies.length>55; // acima de 55 skip de bob/squash
+
+  // PASSO 1: todas as sombras em lote (1 save/restore para todos — muito mais barato)
+  cx.save(); cx.globalAlpha=0.22; cx.fillStyle='#000';
+  for(const e of visEnemies){
+    const dr=e.t?.dr??e.r;
+    const eimg=enemyImages[e.id];
+    const dw=dr*2;
+    const dh=(eimg&&eimg.complete&&eimg.naturalWidth)?dw*(eimg.naturalHeight/eimg.naturalWidth):dw;
+    const feetY=e.y+Math.max(e.r,dh/2);
+    cx.beginPath(); cx.ellipse(e.x,feetY,dr*0.85,dr*0.2,0,0,TAU); cx.fill();
+  }
+  cx.restore();
+
+  // PASSO 2: sprites (shadowBlur somente em bosses)
+  for(const e of visEnemies){
     const eph=gameTime*9+e.x*0.05;
     const emov=e.freeze<=0;
-    const ebob=emov?Math.abs(Math.sin(eph))*-3:0;        // até 3px pra cima
-    const esq =emov?Math.max(0,Math.cos(eph*2))*0.04:0;  // squash no chão
-
-    const dr=e.t?.dr??e.r;  // raio visual (dr) separado do raio de colisão (r)
+    const ebob=(bigCrowd||!emov)?0:Math.abs(Math.sin(eph))*-3;
+    const esq =(bigCrowd||!emov)?0:Math.max(0,Math.cos(eph*2))*0.04;
+    const dr=e.t?.dr??e.r;
     const eimg=enemyImages[e.id];
-
-    // sombra nos pés — calcula altura real da imagem para achar a base do sprite
-    { const dw=dr*2;
-      const dh=(eimg&&eimg.complete&&eimg.naturalWidth)?dw*(eimg.naturalHeight/eimg.naturalWidth):dw;
-      const feetY=e.y+dh/2;  // base real do sprite (centro + metade da altura)
-      const esha=1-Math.abs(ebob)/3*0.25;
-      cx.save();
-      cx.globalAlpha=0.28*esha; cx.fillStyle='#000';
-      cx.beginPath();
-      cx.ellipse(e.x, feetY, dr*0.85*esha, dr*0.2*esha, 0, 0, TAU);
-      cx.fill();
-      cx.globalAlpha=1;
-      cx.restore();
-    }
-    const efaceDir = P.x >= e.x ? 1 : -1;  // 1=direita (em direção ao player), -1=esquerda
+    const efaceDir=P.x>=e.x?1:-1;
     cx.save();
-    cx.translate(e.x, e.y+ebob);
-    cx.scale((1+esq)*efaceDir, 1-esq);
+    cx.translate(e.x,e.y+ebob);
+    cx.scale((1+esq)*efaceDir,1-esq);
     if(eimg&&eimg.complete&&eimg.naturalWidth){
-      // glow sutil no sprite (sem círculo preenchido)
-      cx.shadowColor=e.c; cx.shadowBlur=e.boss?18:5;
-      const dw=dr*2, dh=dw*(eimg.naturalHeight/eimg.naturalWidth);
+      if(e.boss){cx.shadowColor=e.c;cx.shadowBlur=18;} // glow apenas em bosses
+      const dw=dr*2,dh=dw*(eimg.naturalHeight/eimg.naturalWidth);
       cx.drawImage(eimg,-dw/2,-dh/2,dw,dh);
-      cx.shadowBlur=0;
-      // overlay de freeze (azul) sobre o sprite
-      if(e.freeze>0){
-        cx.globalAlpha=0.35;
-        cx.fillStyle='#9ad8ff';
-        cx.fillRect(-dw/2,-dh/2,dw,dh);
-        cx.globalAlpha=1;
-      }
-    } else {
+      if(e.boss)cx.shadowBlur=0;
+      if(e.freeze>0){cx.globalAlpha=0.35;cx.fillStyle='#9ad8ff';cx.fillRect(-dw/2,-dh/2,dw,dh);cx.globalAlpha=1;}
+    }else{
       cx.font=Math.round(dr*1.6)+'px sans-serif';
       cx.textAlign='center';cx.textBaseline='middle';
       cx.fillStyle=e.freeze>0?'#9ad8ff':(e.hit>0?'#fff':e.c);
