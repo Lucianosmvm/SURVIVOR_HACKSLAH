@@ -1684,7 +1684,7 @@ const WEAPONS={
 //  c   : cor do glow e fallback (usado no emoji e na barra de vida).
 const ENEMIES=[
   // --- comuns (qualquer mapa) ---
-  {id:'Slime', name:'Slime Azul', img:'Img/enemy_slime.png', icon:'🥶', r:12, dr:22, hp:4, spd:0.7, dmg:4,  xp:1, gold:1, minTime:0, weight:40, dr:20},
+  {id:'Slime', name:'Slime Azul', img:'Img/enemy_slime.png', icon:'🥶', r:12, dr:22, hp:4, spd:0.7, dmg:4,  xp:1, gold:1, minTime:0, weight:40, dr:16},
   {id:'Zombie', name:'Zumbi', img:'Img/enemy_zombie.png', icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
 
 
@@ -1856,15 +1856,15 @@ const MAPS=[
   {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
     biome:'venom', ground:'grama', stars:1, diffMul:1, unlockCost:0, isLocked:false,
     objects:['pedra','tree','tree2','pedra4','arbusto','arbusto1','stump','grass_t','flower','barrel'],
-    enemies:['Zombie', 'Slime'], bosses:['void']},
+    enemies:['Zombie', 'Slime'], enemyUnlocks:{Slime:0, Zombie:60}, bosses:['void']},
   {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
     biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
     objects:['tree_dead','rock','campfire','barrel','crystal'],
-    enemies:['grunt','fast','imp','magma','ghost'], bosses:['ember']},
+    enemies:['grunt','fast','imp','magma','ghost'], enemyUnlocks:{grunt:0, imp:0, fast:30, ghost:60, magma:90}, bosses:['ember']},
   {id:'frostpeak', icon:'❄️', name:'Pico Gélido', desc:'Geleira mortal. Só os fortes sobrevivem.',
     biome:'frost', ground:'ice', stars:3, diffMul:1.7, unlockCost:900, isLocked:true,
     objects:['tree_dead','rock','crystal','barrel'],
-    enemies:['fast','wraith','golem','ghost','swarm'], bosses:['frost']},
+    enemies:['fast','wraith','golem','ghost','swarm'], enemyUnlocks:{wraith:0, fast:0, swarm:30, ghost:60, golem:90}, bosses:['frost']},
 ];
 const BIOME_BY_ID={}; BIOMES.forEach(b=>BIOME_BY_ID[b.id]=b);
 // ---------- Desbloqueio de mapas (persistente; mesmo padrão dos personagens)
@@ -1972,12 +1972,28 @@ const enemyImages={}; // id -> Image (pré-carregadas para desenho no jogo)
 // Sorteia um tipo de inimigo entre os elegíveis pelo tempo de jogo (por peso).
 function pickEnemyType(){
   const allow=arena.map && arena.map.enemies;
-  let pool=ENEMIES.filter(t=>gameTime>=(t.minTime||0) && (!allow||allow.includes(t.id)));
+  const unlocks=arena.map && arena.map.enemyUnlocks;
+  let pool=ENEMIES.filter(t=>{
+    if(allow && !allow.includes(t.id)) return false;
+    const minT=(unlocks && unlocks[t.id]!=null) ? unlocks[t.id] : (t.minTime||0);
+    return gameTime>=minT;
+  });
   if(!pool.length) pool=ENEMIES.filter(t=>!allow||allow.includes(t.id));  // fallback cedo
   const total=pool.reduce((s,t)=>s+(t.weight||1),0);
   let roll=srng()*total;
   for(const t of pool){ roll-=(t.weight||1); if(roll<=0) return t; }
   return pool[pool.length-1];
+}
+function checkEnemyUnlocks(){
+  const allow=arena.map && arena.map.enemies;
+  const unlocks=arena.map && arena.map.enemyUnlocks;
+  if(!unlocks) return;
+  for(const t of ENEMIES){
+    if(allow && !allow.includes(t.id)) continue;
+    if(_announcedEnemies.has(t.id)) continue;
+    const minT=unlocks[t.id]!=null ? unlocks[t.id] : (t.minTime||0);
+    if(gameTime>=minT){ _announcedEnemies.add(t.id); if(minT>0) toast(t.icon+' '+t.name+' surgiu!'); }
+  }
 }
 // Cria a instância de inimigo a partir de um tipo do catálogo.
 //  scaleSpd=true aplica o leve aumento de velocidade por dificuldade (inimigos comuns).
@@ -2229,7 +2245,7 @@ function dropLoot(x,y,bossBias){ loot.push({x,y,r:10,pull:false,item:genItem(bos
 // ---------- State ----------
 let P,enemies=[],bullets=[],orbs=[],particles=[],dmgTexts=[],floor=[],loot=[],minions=[];
 let keys={},gameTime=0,kills=0,gold=0,wave=1,spawnTimer=0,running=false,paused=false,shake=0,bossCount=0,bossStart=0;
-let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null;
+let bladeAngle=0,toastMsg='',toastT=0,last=0,selectedClass=null,_announcedEnemies=new Set();
 let runGained={runes:0};   // recompensas da run atual (mostradas no game over)
 let combo=0,comboTimer=0,beams=[];
 let bankGold=loadBank(), META=loadMeta();
@@ -3028,7 +3044,7 @@ function startGame(cls, map){
   if(selectedPet && isPetUnlocked(selectedPet)) addPet(selectedPet);   // pet selecionado entra na run
   enemies=[];bullets=[];orbs=[];particles=[];dmgTexts=[];floor=[];beams=[];loot=[];minions=[];
   combo=0;comboTimer=0;
-  gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;acc=0;
+  gameTime=0;kills=0;gold=0;wave=1;spawnTimer=0;running=true;paused=false;bladeAngle=0;acc=0;_announcedEnemies=new Set();
   activeEvent=null;eventTimer=srand(22,32);eventObjs=[];resetEnv();runGained={runes:0};
   hideAllScreens();
   $('hud').classList.remove('hidden'); $('topRight').classList.remove('hidden'); $('actions').classList.remove('hidden'); $('wavebar').classList.remove('hidden');
@@ -3303,6 +3319,7 @@ function update(dt){
   const newCycle=Math.floor((wave-1)/10);
   if(newCycle>(P._cycle||0)){ P._cycle=newCycle; toast('🔥 Ciclo '+(newCycle+1)+' — inimigos +'+(newCycle*40)+'% mais fortes'); }
   updateEvents(dt);
+  checkEnemyUnlocks();
   spawnTimer-=dt; const rate=Math.max(0.12,0.9-gameTime*0.006)/envSpawnMul;
   if(spawnTimer<=0){spawnTimer=rate;spawnEnemy();if(gameTime>20&&srng()<0.3)spawnEnemy();}
   if(Math.floor(gameTime)>0&&Math.floor(gameTime)%60===0&&!P._bossWave){P._bossWave=true;spawnBoss();}
