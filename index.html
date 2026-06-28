@@ -1667,13 +1667,13 @@ const WEAPONS={
 //  c   : cor do glow e fallback (usado no emoji e na barra de vida).
 const ENEMIES=[
   // --- comuns (qualquer mapa) ---
-  {id:'slime', name:'Slime Azul', img:'Img/enemy_slime.png', icon:'🥶', r:12, dr:22, hp:4, spd:0.7, dmg:4,  xp:1, gold:1, minTime:0, weight:40, dr:10},
+  {id:'Slime', name:'Slime Azul', img:'Img/enemy_slime.png', icon:'🥶', r:12, dr:22, hp:4, spd:0.7, dmg:4,  xp:1, gold:1, minTime:0, weight:40, dr:20},
+  {id:'Zombie', name:'Zumbi', img:'Img/enemy_zombie.png', icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
 
 
 
 
-
-  {id:'Zombie', name:'Zombi', img:'Img/enemy_zombie.png', icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
+ 
   {id:'grunt', name:'Lacaio',     icon:'👹', c:'#ff7a7a', r:12, dr:22, hp:14, spd:1.1, dmg:8,  xp:1, gold:1, minTime:0,   weight:40},
   {id:'swarm', name:'Enxame',     icon:'🦟', c:'#9aff7a', r:7,  dr:13, hp:5,  spd:1.6, dmg:4,  xp:1, gold:1, minTime:0,   weight:20},
   {id:'fast',  name:'Veloz',      icon:'🦂', c:'#ffd27a', r:9,  dr:17, hp:9,  spd:2.2, dmg:6,  xp:1, gold:1, minTime:30,  weight:25},
@@ -1839,7 +1839,7 @@ const MAPS=[
   {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
     biome:'venom', ground:'grama', stars:1, diffMul:1, unlockCost:0, isLocked:false,
     objects:['pedra','tree','tree2','pedra4','arbusto','arbusto1','stump','grass_t','flower','barrel'],
-    enemies:['Zombie'], bosses:['void']},
+    enemies:['Zombie', 'Slime'], bosses:['void']},
   {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
     biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
     objects:['tree_dead','rock','campfire','barrel','crystal'],
@@ -3561,7 +3561,7 @@ function render(){
     cx.restore(); }
 
   // pré-filtra inimigos visíveis (culling) — evita trabalho em entidades fora de tela
-  const visEnemies=enemies.filter(e=>e.x>-80&&e.x<W+80&&e.y>-80&&e.y<H+80);
+  const visEnemies=enemies.filter(e=>Math.abs(e.x-P.x)<W/2+80&&Math.abs(e.y-P.y)<H/2+80);
   const bigCrowd=visEnemies.length>55; // acima de 55 skip de bob/squash
 
   // PASSO 1: todas as sombras em lote (1 save/restore para todos — muito mais barato)
@@ -3657,19 +3657,27 @@ function render(){
   // raio visual do player: cls.dr se definido, senão P.r (hitbox)
   const pdr = P.cls.dr ?? P.r;
 
-  // sombra nos pés (usa pdr para tamanho, P.r como âncora da base)
+  const cimg=charImages[P.cls.id];
+
+  // pé do sprite: base real para posicionar a sombra
+  let pFeetY;
+  if(cimg&&cimg.complete&&cimg.naturalWidth){
+    if(P.cls.sprite){ pFeetY=P.y+pdr; }                               // sprite sheet: height = pdr*2, centrado
+    else{ const pdw=pdr*2; pFeetY=P.y+pbob+pdw*(cimg.naturalHeight/cimg.naturalWidth)/2; } // sprite estático
+  } else { pFeetY=P.y+P.r; }
+
+  // sombra nos pés
   { const psha=1-Math.abs(pbob)/4*0.3;
     cx.save();
     cx.globalAlpha=0.35*psha;
     cx.fillStyle='#000';
     cx.beginPath();
-    cx.ellipse(P.x, P.y+P.r, pdr*1.0*psha, pdr*0.25*psha, 0, 0, TAU);
+    cx.ellipse(P.x, pFeetY, pdr*1.0*psha, pdr*0.25*psha, 0, 0, TAU);
     cx.fill();
     cx.globalAlpha=1;
     cx.restore(); }
 
   cx.save();
-  const cimg=charImages[P.cls.id];
   if(cimg&&cimg.complete&&cimg.naturalWidth){
     cx.shadowBlur=0;
     if(P.cls.sprite){                        // personagem animado: quadro da folha de sprites
