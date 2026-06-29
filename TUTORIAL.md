@@ -251,6 +251,70 @@ edite `spawnBoss()` — troque `const b=BOSSES[0];` por um sorteio/rotação. Es
 
 ---
 
+## 3b. Imagem de efeito no ataque (golpe de espada/chicote)
+
+Armas de **corte largo** (`whip`, `swordslash`, `gravewhip`, `poisonwhip`, etc. — todas que usam
+`beams.push({whip:true,...})`) compartilham **um único desenho**. Trocar esse desenho por uma
+imagem (lâminas cortando) atinge **todas** de uma vez.
+
+### Passo 1 — Arte
+
+- Arquivo: `Img/fx_slash.png`, **fundo transparente**.
+- Desenhe a lâmina **apontando para a direita**. O jogo espelha sozinho no golpe pra esquerda.
+- Imagem horizontal: ela é esticada de `0..range` (largura) por `±h` (altura). Proporção comprida.
+
+### Passo 2 — Carregar a imagem
+
+Perto dos outros `new Image()` (depois das rochas, ~linha 1784 em `index.html`):
+
+```js
+const slashImg=new Image(); slashImg.src='Img/fx_slash.png';
+```
+
+### Passo 3 — Desenhar no beam
+
+No render dos `beams` (procure `else if(b.whip)` na função de desenho, ~linha 3619):
+
+```js
+} else if(b.whip){ const al=clamp(b.t*5,0,1);
+  if(slashImg.complete&&slashImg.naturalWidth){
+    cx.save(); cx.globalAlpha=al; cx.translate(b.x,b.y);
+    if(b.dir<0) cx.scale(-1,1);                       // espelha p/ a esquerda
+    cx.drawImage(slashImg, 0, -b.h, b.range, b.h*2);  // x:0..range, centrado em y
+    cx.restore();
+  } else {                                            // fallback: retângulo antigo
+    cx.fillStyle=`rgba(255,210,122,${al*0.45})`;
+    cx.fillRect(b.dir>0?b.x:b.x-b.range, b.y-b.h, b.range, b.h*2);
+  } }
+```
+
+> **Sem o arquivo → cai no fallback (retângulo amarelo). Não quebra.**
+
+### Dados do beam disponíveis no desenho
+
+| Campo | Significado |
+|---|---|
+| `b.x` / `b.y` | Origem do golpe (posição do jogador). |
+| `b.dir` | Lado: `1` direita, `-1` esquerda. |
+| `b.range` | Comprimento do golpe (px). |
+| `b.h` | Meia-altura (golpe vai de `-h` a `+h`). |
+| `b.t` | Timer de vida (começa ~0.18, decresce a 0). Use p/ fade ou escolher quadro. |
+
+### Quer animação por quadros (spritesheet no golpe)?
+
+Em vez de 1 imagem fixa, use uma folha e escolha o quadro por `b.t`:
+
+```js
+const FR=6, dur=0.18;                       // 6 quadros, duração do golpe
+const idx=Math.min(FR-1, Math.floor((1-b.t/dur)*FR));
+const fw=slashImg.naturalWidth/FR;
+cx.drawImage(slashImg, idx*fw,0, fw,slashImg.naturalHeight, 0,-b.h, b.range,b.h*2);
+```
+
+⚠️ Offline (PWA): adicione `./Img/fx_slash.png` ao `PRECACHE` em `sw.js` e suba `CACHE_VERSION`.
+
+---
+
 ## 4. Checklist final
 
 Depois de editar qualquer catálogo:
