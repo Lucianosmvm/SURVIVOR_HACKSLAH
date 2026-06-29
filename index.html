@@ -875,7 +875,7 @@ const CLASSES=[
   {id:'guerreiro',icon:'🗡️',name:'Guerreiro',desc:'Muita vida e golpes amplos.',start:'whip',img:'Img/Guerreiro.png', dr:20,
     rarity:'rare', startLevel:1, isLocked:false,
     attrs:{hp:180, speed:2.7, attack:18, defense:12},
-    abilities:['Chicote','Giro Cortante'],
+    abilities:['Corte de Espada','Giro Cortante'],
     ult:{id:'whirl',name:'Giro Cortante',icon:'🌀',cd:16,desc:'Gira cortando tudo ao redor + invencível.',
       cast(P){ P.whirlT=3; P.invuln=Math.max(P.invuln,1.5); }},   // o dano do giro é tratado no update()
     passive:'+3 armadura e +20 vida', stats:'❤️180 · 🌀 Giro Cortante',
