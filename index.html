@@ -1096,6 +1096,12 @@ const WEAPONS={
         beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg:10+L*4});
         enemies.forEach(e=>{ const rx=(e.x-P.x)*side; if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h)
           damageEnemy(e,10+L*4,side,0); }); } }},
+  swordslash:{name:'Corte de Espada',icon:'🗡️',desc:'Golpe forte só para o lado que olha.',
+    fire(w,L,dt){ w.cd=0.6/P.haste; const range=(140+L*24)*P.area, h=(40+L*5)*P.area;
+      const side=P.facing.x<0?-1:1, dmg=(14+L*5)*P.might;
+      beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg});
+      enemies.forEach(e=>{ const rx=(e.x-P.x)*side; if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h)
+        damageEnemy(e,dmg,side,0); }); }},
   meteor:{name:'Meteoro',icon:'☄️',desc:'Cai do céu em explosão.',
     fire(w,L,dt){ w.cd=2.2/P.haste; const n=1+Math.floor(L/2);
       for(let i=0;i<n;i++){ const tg=nearestEnemies(8)[Math.floor(Math.random()*Math.min(8,enemies.length))];
