@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.lucianosmvm.survivor_hackslah",
+        "sha256_cert_fingerprints": ["26:84:B4:B3:AE:15:4E:0E:15:B8:2B:39:9D:A3:B9:85:BA:97:30:5C:F3:9B:9C:55:2E:32:67:77:63:B2:0F:11"]
+      }
+    }]

@@ -1,0 +1,7 @@
+# Pacote Play Store gerado (NÃO versionar — contém chave de assinatura)
+Crônicas - Google Play package/
+Crônicas - Google Play package.zip
+*.keystore
+*.aab
+*.apk
+signing-key-info.txt
