@@ -1,4 +1,5 @@
 {
+  "id": "/SURVIVOR_HACKSLAH/",
   "name": "Crônicas do Vazio",
   "short_name": "Crônicas",
   "description": "Sobreviva às hordas do Vazio. Survivor roguelike de ação.",
@@ -6,7 +7,9 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "portrait",
+  "prefer_related_applications": false,
   "background_color": "#05060a",
   "theme_color": "#05060a",
   "categories": ["games"],
