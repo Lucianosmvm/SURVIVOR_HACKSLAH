@@ -1,10 +1,10 @@
-// Service worker — cache offline para a PWA "Crônicas do Vazio".
-// Suba o CACHE_VERSION sempre que mudar arquivos para forçar atualização.
-const CACHE_VERSION = 'cronicas-v2';
+// Service worker â€” cache offline para a PWA "CrÃ´nicas do Vazio".
+// Suba o CACHE_VERSION sempre que mudar arquivos para forÃ§ar atualizaÃ§Ã£o.
+const CACHE_VERSION = 'cronicas-v3';
 
-// Arquivos pré-cacheados (caminhos relativos ao local do sw.js).
+// Arquivos prÃ©-cacheados (caminhos relativos ao local do sw.js).
 // IMPORTANTE: ao separar dados em data/*.js depois, adicione-os aqui,
-// senão o app quebra offline.
+// senÃ£o o app quebra offline.
 const PRECACHE = [
   './',
   './index.html',
@@ -15,14 +15,14 @@ const PRECACHE = [
   './Img/menu.png',
 ];
 
-// Instala: pré-cacheia os arquivos essenciais.
+// Instala: prÃ©-cacheia os arquivos essenciais.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_VERSION).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting())
   );
 });
 
-// Ativa: remove caches de versões antigas.
+// Ativa: remove caches de versÃµes antigas.
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
@@ -31,8 +31,8 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch: cache-first. Se não houver em cache, busca na rede e guarda.
-// Navegação (abrir o app) sempre cai no index.html quando offline.
+// Fetch: cache-first. Se nÃ£o houver em cache, busca na rede e guarda.
+// NavegaÃ§Ã£o (abrir o app) sempre cai no index.html quando offline.
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -48,7 +48,7 @@ self.addEventListener('fetch', (e) => {
     caches.match(req).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        // só cacheia respostas válidas do mesmo domínio
+        // sÃ³ cacheia respostas vÃ¡lidas do mesmo domÃ­nio
         if (res && res.ok && res.type === 'basic') {
           const copy = res.clone();
           caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
