@@ -1,8 +1,11 @@
 [{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.lucianosmvm.survivor_hackslah",
-        "sha256_cert_fingerprints": ["26:84:B4:B3:AE:15:4E:0E:15:B8:2B:39:9D:A3:B9:85:BA:97:30:5C:F3:9B:9C:55:2E:32:67:77:63:B2:0F:11"]
-      }
-    }]
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.lucianosmvm.survivor_hackslah",
+    "sha256_cert_fingerprints": [
+      "9A:F2:45:EE:92:58:C7:06:5A:9A:D4:22:31:79:73:65:FD:2A:79:87:5A:F1:BA:E8:F8:1D:EA:B5:F2:64:D3:A5",
+      "26:84:B4:B3:AE:15:4E:0E:15:B8:2B:39:9D:A3:B9:85:BA:97:30:5C:F3:9B:9C:55:2E:32:67:77:63:B2:0F:11"
+    ]
+  }
+}]
