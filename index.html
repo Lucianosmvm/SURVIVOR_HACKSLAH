@@ -1098,7 +1098,7 @@ const WEAPONS={
           damageEnemy(e,10+L*4,side,0); }); } }},
           
   swordslash:{name:'Corte de Espada',icon:'🗡️',desc:'Golpe forte só para o lado que olha.',
-    fire(w,L,dt){ w.cd=0.6/P.haste; const range=(70+L*24)*P.area, h=(20+L*5)*P.area;
+    fire(w,L,dt){ w.cd=0.6/P.haste; const range=(50+L*24)*P.area, h=(20+L*5)*P.area;
       const side=P.facing.x<0?-1:1, dmg=(14+L*5)*P.might;
       beams.push({whip:true,x:P.x,y:P.y,dir:side,range,h,t:0.18,dmg});
       enemies.forEach(e=>{ const rx=(e.x-P.x)*side; if(rx>0&&rx<range&&Math.abs(e.y-P.y)<h)
@@ -2080,7 +2080,7 @@ const PETS=[
   // imgSize: tamanho em px da imagem desenhada no jogo (padrão 36).
   {id:'wolf',  icon:'🐺', name:'Lobo',   color:'#c8c8d6', cost:0,    img:'Img/Pets/lobo.png', imgSize:36, desc:'Dá o bote no inimigo mais próximo.',
     behavior(pt,L,dt){ if(pt.cd<=0){ const tg=nearestEnemies(1)[0];
-      if(tg && dist2(pt,tg)<340*340){ pt.cd=1.0; damageEnemy(tg,10+L*6,tg.x-pt.x,tg.y-pt.y);
+      if(tg && dist2(pt,tg)<100*100){ pt.cd=1.0; damageEnemy(tg,10+L*6,tg.x-pt.x,tg.y-pt.y);
         pt.x=tg.x; pt.y=tg.y; pt.slash={x:tg.x,y:tg.y,t:0.2}; } } }},
   {id:'raven', icon:'🦅', name:'Corvo',  color:'#8a8af5', cost:400,  imgSize:36, desc:'Atrai orbes de longe e bica inimigos.',
     behavior(pt,L,dt){ for(const o of orbs){ if(!o.pull && dist2(pt,o)<200*200)o.pull=true; }
