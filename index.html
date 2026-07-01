@@ -1761,8 +1761,11 @@ const WORLD_OBJECTS=[
   {id:'grama',     icon:'🌳', r:8, solid:false,  n:[5,10], minR:220},
   {id:'arbusto1',     icon:'🌳', r:24, solid:true,  n:[1,3], minR:220},
   {id:'pedra',    icon:'🪨', r:24, solid:true,  n:[0,2], minR:200},
+  {id:'chao3',    icon:'🪨', r:24, solid:false,  n:[2,6], minR:200},
+  {id:'chao6',    icon:'🪨', r:24, solid:false,  n:[2,6], minR:200},
   {id:'pedra4',    icon:'🪨', r:24, solid:true,  n:[0,2], minR:200,cr:30,cox:0,coy:-40},
-
+  {id:'arbusto2',     icon:'🌳', r:24, solid:true,  n:[1,3], minR:220,cr:30,cox:0,coy:-40},
+  {id:'vaso2',    icon:'🪨', r:24, solid:true,  n:[0,2], minR:200,chest:true,gold:50,xp:5},
 
 
   {id:'tree',     icon:'🌳', r:38, solid:true,  n:[1,3], minR:220, layered:true, trunkRatio:0.32, cr:14, cox:0, coy:0},
@@ -1877,7 +1880,7 @@ function pickGround(){
 const MAPS=[
   {id:'meadow', icon:'🌳', name:'Campina', desc:'Planície verdejante. Bom para começar.',
     biome:'venom', ground:'grama', stars:1, diffMul:1, unlockCost:0, isLocked:false,
-    objects:['pedra','tree','tree2','pedra4','arbusto','arbusto1','stump','grass_t','flower','barrel'],
+    objects:['arbusto1','chao3','chao6','flor','pedra','arbusto2','vaso2','pedra4'],
     enemies:['Zombie', 'Slime'], enemyUnlocks:{Slime:0, Zombie:60}, bosses:['void']},
   {id:'ashlands', icon:'🌋', name:'Terras Cinzentas', desc:'Vulcão e cinzas. Inimigos mais fortes.',
     biome:'ember', ground:'lava', stars:2, diffMul:1.35, unlockCost:400, isLocked:true,
